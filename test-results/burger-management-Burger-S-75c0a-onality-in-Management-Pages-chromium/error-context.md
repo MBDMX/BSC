@@ -1,0 +1,106 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]: 🍔 Burger Social Club
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]: Tableau de bord
+      - generic [ref=e7] [cursor=pointer]: Gestion des ventes
+      - generic [ref=e8] [cursor=pointer]: Inventaire
+      - generic [ref=e9] [cursor=pointer]: Analytics
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]: Chiffre d'affaires (mois)
+        - generic [ref=e14]: 12 450 €
+        - generic [ref=e15]: +8% par rapport au mois précédent
+      - generic [ref=e16]:
+        - generic [ref=e17]: Nombre de burgers vendus
+        - generic [ref=e18]: 1 245
+        - generic [ref=e19]: "Moyenne: 41 par jour"
+      - generic [ref=e20]:
+        - generic [ref=e21]: Coût moyen par burger
+        - generic [ref=e22]: 3,75 €
+        - generic [ref=e23]: "-0,25€ par rapport au mois précédent"
+      - generic [ref=e24]:
+        - generic [ref=e25]: Marge bénéficiaire
+        - generic [ref=e26]: 58%
+        - generic [ref=e27]: +2% par rapport au mois précédent
+    - generic [ref=e28]:
+      - heading "📊 Ventes par produit" [level=2] [ref=e29]
+      - table [ref=e30]:
+        - rowgroup [ref=e31]:
+          - row "Produit Quantité vendue Prix unitaire Total" [ref=e32]:
+            - cell "Produit" [ref=e33]
+            - cell "Quantité vendue" [ref=e34]
+            - cell "Prix unitaire" [ref=e35]
+            - cell "Total" [ref=e36]
+        - rowgroup [ref=e37]:
+          - row "Burger Classic 450 8,50 € 3 825 €" [ref=e38]:
+            - cell "Burger Classic" [ref=e39]
+            - cell "450" [ref=e40]
+            - cell "8,50 €" [ref=e41]
+            - cell "3 825 €" [ref=e42]
+          - row "Burger Cheese 380 9,50 € 3 610 €" [ref=e43]:
+            - cell "Burger Cheese" [ref=e44]
+            - cell "380" [ref=e45]
+            - cell "9,50 €" [ref=e46]
+            - cell "3 610 €" [ref=e47]
+          - row "Burger Veggie 210 10,50 € 2 205 €" [ref=e48]:
+            - cell "Burger Veggie" [ref=e49]
+            - cell "210" [ref=e50]
+            - cell "10,50 €" [ref=e51]
+            - cell "2 205 €" [ref=e52]
+          - row "Burger Spécial 205 12,50 € 2 562,50 €" [ref=e53]:
+            - cell "Burger Spécial" [ref=e54]
+            - cell "205" [ref=e55]
+            - cell "12,50 €" [ref=e56]
+            - cell "2 562,50 €" [ref=e57]
+    - generic [ref=e58]:
+      - heading "📈 Évolution des ventes" [level=2] [ref=e59]
+      - generic [ref=e60]:
+        - generic [ref=e61]: Jan 8450€
+        - generic [ref=e62]: Fév 9200€
+        - generic [ref=e63]: Mar 10100€
+        - generic [ref=e64]: Avr 9800€
+        - generic [ref=e65]: Mai 11200€
+        - generic [ref=e66]: Juin 12450€
+    - generic [ref=e67]:
+      - heading "🧾 Stock actuel" [level=2] [ref=e68]
+      - generic [ref=e69]: Certains ingrédients sont en quantité limitée. Pensez à passer commande.
+      - table [ref=e70]:
+        - rowgroup [ref=e71]:
+          - row "Ingrédient Quantité restante Seuil d'alerte Statut" [ref=e72]:
+            - cell "Ingrédient" [ref=e73]
+            - cell "Quantité restante" [ref=e74]
+            - cell "Seuil d'alerte" [ref=e75]
+            - cell "Statut" [ref=e76]
+        - rowgroup [ref=e77]:
+          - row "Pain burger 120 unités 50 unités OK" [ref=e78]:
+            - cell "Pain burger" [ref=e79]
+            - cell "120 unités" [ref=e80]
+            - cell "50 unités" [ref=e81]
+            - cell "OK" [ref=e82]:
+              - generic [ref=e83]: OK
+          - row "Steaks hachés 85 unités 40 unités OK" [ref=e84]:
+            - cell "Steaks hachés" [ref=e85]
+            - cell "85 unités" [ref=e86]
+            - cell "40 unités" [ref=e87]
+            - cell "OK" [ref=e88]:
+              - generic [ref=e89]: OK
+          - row "Fromage cheddar 35 unités 30 unités Attention" [ref=e90]:
+            - cell "Fromage cheddar" [ref=e91]
+            - cell "35 unités" [ref=e92]
+            - cell "30 unités" [ref=e93]
+            - cell "Attention" [ref=e94]:
+              - generic [ref=e95]: Attention
+          - row "Sauce spéciale 15 unités 20 unités Rupture" [ref=e96]:
+            - cell "Sauce spéciale" [ref=e97]
+            - cell "15 unités" [ref=e98]
+            - cell "20 unités" [ref=e99]
+            - cell "Rupture" [ref=e100]:
+              - generic [ref=e101]: Rupture
+  - text: Jan 5200€ Fév 6100€ Mar 7000€ Avr 7800€ Mai 8500€ Juin 12450€ Juil 11200€ Aoû 10100€ Sep 9000€ Oct 8000€ Nov 7000€ Déc 6100€
+  - contentinfo [ref=e102]: © 2023 Burger Social Club - Version statique de démonstration
+```

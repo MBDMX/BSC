@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solution d'urgence - Burger Social Club</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #4a148c;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #4a148c;
+        }
+        h2 {
+            color: #4a148c;
+            margin-top: 0;
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .important {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+        }
+        ol li, ul li {
+            margin-bottom: 10px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4a148c;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .button:hover {
+            background-color: #6a1b9a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍔 Solution d'urgence - Burger Social Club</h1>
+        
+        <div class="section important">
+            <h2>Problème identifié</h2>
+            <p>L'application Next.js ne répond pas correctement. Cela peut être dû à plusieurs facteurs :</p>
+            <ul>
+                <li>Problème de configuration du serveur Next.js</li>
+                <li>Conflit de dépendances</li>
+                <li>Problème avec le système d'authentification</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>Solution 1 : Redémarrer le serveur</h2>
+            <ol>
+                <li>Ouvrez une invite de commande (cmd) ou PowerShell</li>
+                <li>Naviguez vers le dossier frontend : <code>cd "c:\Users\Mohamed BR\OneDrive\burger-mvp-project\frontend"</code></li>
+                <li>Arrêtez tout serveur en cours d'exécution avec <code>Ctrl+C</code></li>
+                <li>Démarrez le serveur avec : <code>npm run dev</code></li>
+                <li>Attendez que le serveur démarre complètement</li>
+                <li>Ouvrez votre navigateur et accédez à <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></li>
+            </ol>
+        </div>
+        
+        <div class="section">
+            <h2>Solution 2 : Accès direct au tableau de bord</h2>
+            <p>Si le serveur est démarré mais que vous ne pouvez pas accéder à l'application via la page d'accueil, essayez d'accéder directement au tableau de bord :</p>
+            <p><a href="http://localhost:3000/dashboard" class="button" target="_blank">Accéder au tableau de bord</a></p>
+            <p>Si cela fonctionne, c'est que le problème est spécifique à la page d'accueil.</p>
+        </div>
+        
+        <div class="section">
+            <h2>Solution 3 : Réinstaller les dépendances</h2>
+            <p>Si les solutions précédentes ne fonctionnent pas, essayez de réinstaller les dépendances :</p>
+            <ol>
+                <li>Ouvrez une invite de commande (cmd) ou PowerShell</li>
+                <li>Naviguez vers le dossier frontend : <code>cd "c:\Users\Mohamed BR\OneDrive\burger-mvp-project\frontend"</code></li>
+                <li>Supprimez le dossier node_modules : <code>rmdir /s /q node_modules</code></li>
+                <li>Supprimez le fichier package-lock.json : <code>del package-lock.json</code></li>
+                <li>Réinstallez les dépendances : <code>npm install</code></li>
+                <li>Démarrez le serveur : <code>npm run dev</code></li>
+            </ol>
+        </div>
+        
+        <div class="section">
+            <h2>Solution 4 : Vérifier le port</h2>
+            <p>Il est possible que le port 3000 soit déjà utilisé par une autre application. Essayez de démarrer le serveur sur un port différent :</p>
+            <code>npx next dev -p 3001</code>
+            <p>Puis accédez à <a href="http://localhost:3001" target="_blank">http://localhost:3001</a></p>
+        </div>
+        
+        <div class="section">
+            <h2>Liens directs</h2>
+            <p>Essayez d'accéder directement à ces pages (si le serveur est démarré) :</p>
+            <a href="http://localhost:3000/dashboard" class="button" target="_blank">Dashboard</a>
+            <a href="http://localhost:3000/login" class="button" target="_blank">Login</a>
+            <a href="http://localhost:3000/gestion-ventes" class="button" target="_blank">Gestion des ventes</a>
+            <a href="http://localhost:3000/analytics" class="button" target="_blank">Analytics</a>
+        </div>
+    </div>
+</body>
+</html>

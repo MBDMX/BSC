@@ -1,0 +1,577 @@
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Navbar from "../components/Navbar";
+import {
+  LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
+} from 'recharts';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+interface KPIMetrics {
+  total_revenue: number;
+  total_cost: number;
+  gross_profit: number;
+  profit_margin: number;
+  stock_turnover: number;
+  stockout_rate: number;
+  waste_rate: number;
+  supplier_performance: number;
+  customer_satisfaction: number;
+  roi_per_product: Record<string, number>;
+}
+
+interface StockPrediction {
+  product_id: number;
+  product_name: string;
+  current_stock: number;
+  predicted_stock_7d: number;
+  predicted_stock_30d: number;
+  stockout_risk: number;
+  recommended_order: number;
+  confidence_level: number;
+}
+
+interface AnomalyAlert {
+  id: string;
+  type: string;
+  product_id?: number;
+  product_name?: string;
+  severity: string;
+  description: string;
+  detected_at: string;
+  confidence: number;
+  recommended_action: string;
+  estimated_impact: number;
+}
+
+interface PriceRecommendation {
+  product_id: number;
+  product_name: string;
+  current_price: number;
+  recommended_price: number;
+  price_change_percent: number;
+  expected_revenue_impact: number;
+  competitor_analysis: Record<string, number>;
+  demand_elasticity: number;
+}
+
+interface BusinessInsights {
+  top_performing_products: Array<{
+    product_id: number;
+    product_name: string;
+    roi: number;
+    revenue_contribution: number;
+  }>;
+  underperforming_products: Array<{
+    product_id: number;
+    product_name: string;
+    roi: number;
+    issue: string;
+  }>;
+  stock_optimization_opportunities: Array<{
+    product_id: number;
+    product_name: string;
+    current_stock: number;
+    recommended_order: number;
+    stockout_risk: number;
+    action: string;
+  }>;
+  pricing_opportunities: Array<{
+    product_id: number;
+    product_name: string;
+    current_margin: number;
+    recommendation: string;
+  }>;
+}
+
+const Analytics: React.FC = () => {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [kpis, setKpis] = useState<KPIMetrics | null>(null);
+  const [predictions, setPredictions] = useState<StockPrediction[]>([]);
+  const [anomalies, setAnomalies] = useState<AnomalyAlert[]>([]);
+  const [priceRecommendations, setPriceRecommendations] = useState<PriceRecommendation[]>([]);
+  const [insights, setInsights] = useState<BusinessInsights | null>(null);
+  const [powerbiUrl, setPowerbiUrl] = useState<string>('');
+
+  useEffect(() => {
+    fetchAnalyticsData();
+  }, []);
+
+  const fetchAnalyticsData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      // Fetch all analytics data
+      const [kpisRes, predictionsRes, anomaliesRes, recommendationsRes, insightsRes] = await Promise.all([
+        fetch('http://localhost:8000/analytics/kpis/advanced', { headers }),
+        fetch('http://localhost:8000/analytics/predictions/stock', { headers }),
+        fetch('http://localhost:8000/analytics/anomalies/detect', { headers }),
+        fetch('http://localhost:8000/analytics/pricing/recommendations', { headers }),
+        fetch('http://localhost:8000/analytics/insights/business', { headers })
+      ]);
+
+      if (kpisRes.ok) setKpis(await kpisRes.json());
+      if (predictionsRes.ok) setPredictions(await predictionsRes.json());
+      if (anomaliesRes.ok) setAnomalies(await anomaliesRes.json());
+      if (recommendationsRes.ok) setPriceRecommendations(await recommendationsRes.json());
+      if (insightsRes.ok) setInsights(await insightsRes.json());
+
+      toast.success('Données analytics chargées avec succès !');
+    } catch (error) {
+      console.error('Erreur lors du chargement des données analytics:', error);
+      toast.error('Erreur lors du chargement des données analytics');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return 'text-red-600 bg-red-100';
+      case 'high': return 'text-orange-600 bg-orange-100';
+      case 'medium': return 'text-yellow-600 bg-yellow-100';
+      case 'low': return 'text-blue-600 bg-blue-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getRiskColor = (risk: number) => {
+    if (risk > 70) return 'text-red-600';
+    if (risk > 40) return 'text-orange-600';
+    return 'text-green-600';
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement des analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="analytics-container bg-gray-50 min-h-screen">
+      <Navbar />
+      {/* Header */}
+      <div className="analytics-header px-2 sm:px-4 md:px-8">
+        <div className="max-w-screen-2xl mx-auto">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1>📊 Analytics & Business Intelligence</h1>
+              <p>
+                Intelligence artificielle et analyses avancées pour optimiser votre gestion de stock
+              </p>
+            </div>
+            <button
+              onClick={fetchAnalyticsData}
+              className="refresh-button"
+            >
+              🔄 Actualiser
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* KPIs Avancés - Affichage principal en haut */}
+      {kpis && (
+        <div className="max-w-screen-2xl mx-auto mb-8 px-2 sm:px-4 md:px-8">
+          <div className="kpi-grid">
+            <div className="kpi-card animate-slide-in">
+              <div className="kpi-value">{kpis.total_revenue.toLocaleString()} TND</div>
+              <div className="kpi-label">Revenus Totaux</div>
+            </div>
+            
+            <div className="kpi-card animate-slide-in">
+              <div className="kpi-value">{kpis.gross_profit.toLocaleString()} TND</div>
+              <div className="kpi-label">Bénéfice Brut</div>
+            </div>
+            
+            <div className="kpi-card animate-slide-in">
+              <div className="kpi-value">{kpis.profit_margin.toFixed(1)}%</div>
+              <div className="kpi-label">Marge Bénéficiaire</div>
+            </div>
+            
+            <div className="kpi-card animate-slide-in">
+              <div className="kpi-value">{kpis.stock_turnover.toFixed(1)}</div>
+              <div className="kpi-label">Rotation des Stocks</div>
+            </div>
+            
+            <div className="kpi-card animate-slide-in">
+              <div className="kpi-value">{kpis.stockout_rate.toFixed(1)}%</div>
+              <div className="kpi-label">Taux de Rupture</div>
+            </div>
+            
+            <div className="kpi-card animate-slide-in">
+              <div className="kpi-value">{kpis.customer_satisfaction.toFixed(1)}%</div>
+              <div className="kpi-label">Satisfaction Client</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Tabs - En bas */}
+      <div className="max-w-screen-2xl mx-auto mb-8 px-2 sm:px-4 md:px-8">
+        <div className="analytics-tabs">
+          <div className="tab-nav">
+            {[
+              { id: 'overview', name: 'Vue d\'ensemble', icon: '📈' },
+              { id: 'predictions', name: 'Prédictions ML', icon: '🤖' },
+              { id: 'anomalies', name: 'Détection d\'Anomalies', icon: '⚠️' },
+              { id: 'pricing', name: 'Recommandations Prix', icon: '💰' },
+              { id: 'insights', name: 'Insights Business', icon: '💡' },
+              { id: 'powerbi', name: 'Power BI', icon: '📊' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+              >
+                <span className="mr-2">{tab.icon}</span>
+                {tab.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-screen-2xl mx-auto px-2 sm:px-4 md:px-8">
+        <div className="analytics-content">
+        {/* Vue d'ensemble */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* ROI par Produit */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">ROI par Produit</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={kpis ? Object.entries(kpis.roi_per_product).map(([name, roi]) => ({ name, roi })) : []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="roi" fill="#3B82F6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Prédictions de Stock */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Prédictions de Stock (7 jours)</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={predictions}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="product_name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="current_stock" stroke="#EF4444" name="Stock Actuel" />
+                    <Line type="monotone" dataKey="predicted_stock_7d" stroke="#3B82F6" name="Prédiction 7j" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Alerts */}
+            {anomalies.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">🚨 Alertes Critiques</h3>
+                <div className="space-y-3">
+                  {anomalies.slice(0, 5).map((anomaly) => (
+                    <div key={anomaly.id} className={`p-4 rounded-lg ${getSeverityColor(anomaly.severity)}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium">{anomaly.description}</p>
+                          <p className="text-sm mt-1">{anomaly.recommended_action}</p>
+                        </div>
+                        <span className="text-xs bg-white px-2 py-1 rounded">
+                          {anomaly.confidence.toFixed(0)}% confiance
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* KPIs Avancés - Redirigé vers la vue d'ensemble */}
+        {activeTab === 'kpis' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">🎯 KPIs Avancés</h2>
+              <p className="text-gray-600 mb-4">Les KPIs sont maintenant affichés en haut de la page pour un accès rapide.</p>
+              <div className="text-center py-8">
+                <div className="text-6xl mb-4">📊</div>
+                <p className="text-gray-500">Consultez les métriques principales dans la section en haut de la page</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Prédictions ML */}
+        {activeTab === 'predictions' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">🤖 Prédictions Machine Learning</h2>
+              
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Produit
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Stock Actuel
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Prédiction 7j
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Risque Rupture
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Commande Recommandée
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Confiance
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {predictions.map((prediction) => (
+                      <tr key={prediction.product_id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {prediction.product_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {prediction.current_stock.toFixed(1)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {prediction.predicted_stock_7d.toFixed(1)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`text-sm font-medium ${getRiskColor(prediction.stockout_risk)}`}>
+                            {prediction.stockout_risk.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {prediction.recommended_order.toFixed(1)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {(prediction.confidence_level * 100).toFixed(0)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Détection d'Anomalies */}
+        {activeTab === 'anomalies' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">⚠️ Détection d'Anomalies</h2>
+              
+              {anomalies.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">✅</div>
+                  <p className="text-gray-500">Aucune anomalie détectée</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {anomalies.map((anomaly) => (
+                    <div key={anomaly.id} className={`p-6 rounded-lg border-l-4 ${getSeverityColor(anomaly.severity)}`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center mb-2">
+                            <span className="text-lg mr-2">
+                              {anomaly.severity === 'critical' ? '🚨' : 
+                               anomaly.severity === 'high' ? '⚠️' : 
+                               anomaly.severity === 'medium' ? '⚡' : 'ℹ️'}
+                            </span>
+                            <h3 className="text-lg font-medium">{anomaly.description}</h3>
+                          </div>
+                          <p className="text-gray-600 mb-2">{anomaly.recommended_action}</p>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                            <span>Impact estimé: {anomaly.estimated_impact.toFixed(2)} TND</span>
+                            <span>Confiance: {anomaly.confidence.toFixed(0)}%</span>
+                            <span>Détecté le: {new Date(anomaly.detected_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Recommandations Prix */}
+        {activeTab === 'pricing' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">💰 Recommandations de Prix Dynamiques</h2>
+              
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Produit
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Prix Actuel
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Prix Recommandé
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Variation
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Impact Revenus
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Élasticité
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {priceRecommendations.map((rec) => (
+                      <tr key={rec.product_id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {rec.product_name}
+                        </td>
+                                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {rec.current_price.toFixed(2)} TND
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {rec.recommended_price.toFixed(2)} TND
+                      </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`text-sm font-medium ${
+                            rec.price_change_percent > 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {rec.price_change_percent > 0 ? '+' : ''}{rec.price_change_percent.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {rec.expected_revenue_impact.toFixed(1)}%
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {rec.demand_elasticity.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Insights Business */}
+        {activeTab === 'insights' && insights && (
+          <div className="space-y-6">
+            {/* Produits Performants */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">🏆 Produits Performants</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {insights.top_performing_products.map((product) => (
+                  <div key={product.product_id} className="p-4 bg-green-50 rounded-lg">
+                    <h4 className="font-medium text-green-900">{product.product_name}</h4>
+                    <p className="text-2xl font-bold text-green-600">{product.roi.toFixed(1)}% ROI</p>
+                                            <p className="text-sm text-green-700">{product.revenue_contribution.toFixed(0)} TND contribution</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Opportunités d'Optimisation */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">🎯 Opportunités d'Optimisation du Stock</h3>
+              <div className="space-y-3">
+                {insights.stock_optimization_opportunities.map((opp) => (
+                  <div key={opp.product_id} className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
+                    <div>
+                      <h4 className="font-medium text-blue-900">{opp.product_name}</h4>
+                      <p className="text-sm text-blue-700">
+                        Stock actuel: {opp.current_stock.toFixed(1)} | 
+                        Commande recommandée: {opp.recommended_order.toFixed(1)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        opp.stockout_risk > 70 ? 'bg-red-100 text-red-800' :
+                        opp.stockout_risk > 40 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {opp.action}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Power BI */}
+        {activeTab === 'powerbi' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">📊 Power BI Integration</h2>
+              
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🚧</div>
+                <h3 className="text-xl font-medium text-gray-900 mb-2">Dashboard Power BI en cours de développement</h3>
+                <p className="text-gray-500 mb-6">
+                  L'intégration Power BI sera bientôt disponible pour des dashboards temps réel avancés.
+                </p>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">Fonctionnalités à venir :</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Dashboard temps réel avec KPIs avancés</li>
+                    <li>• Prédictions de stock avec visualisations interactives</li>
+                    <li>• Détection d'anomalies en temps réel</li>
+                    <li>• Rapports automatisés et exportables</li>
+                    <li>• Intégration avec Microsoft Power BI Service</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Analytics; 

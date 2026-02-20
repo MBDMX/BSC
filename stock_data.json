@@ -1,0 +1,52 @@
+{
+  "stock": [
+    {
+      "id": 1,
+      "name": "Burger",
+      "unitCost": 5
+    },
+    {
+      "id": 2,
+      "name": "Boisson",
+      "unitCost": 2
+    }
+  ],
+  "purchase_history": {
+    "1": [
+      {
+        "date": "2025-07-01",
+        "quantity": 50,
+        "unitCost": 5
+      },
+      {
+        "date": "2025-07-05",
+        "quantity": 70,
+        "unitCost": 5
+      }
+    ],
+    "2": [
+      {
+        "date": "2025-07-03",
+        "quantity": 100,
+        "unitCost": 2
+      }
+    ]
+  },
+  "sales": [
+    {
+      "item_id": 1,
+      "date": "2025-07-09",
+      "quantity": 30
+    },
+    {
+      "item_id": 2,
+      "date": "2025-07-09",
+      "quantity": 60
+    }
+  ],
+  "kpi": {
+    "revenue": 5000,
+    "charges": 2000,
+    "target": 10000
+  }
+}

@@ -1,0 +1,1 @@
+# recette_model.py

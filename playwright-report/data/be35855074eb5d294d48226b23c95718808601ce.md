@@ -1,0 +1,76 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]: 🍔 Burger Social Club
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]: Tableau de bord
+      - generic [ref=e7] [cursor=pointer]: Gestion des ventes
+      - generic [ref=e8] [cursor=pointer]: Inventaire
+      - generic [ref=e9] [cursor=pointer]: Analytics
+  - text: Jan 8450€ Fév 9200€ Mar 10100€ Avr 9800€ Mai 11200€ Juin 12450€
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]: Vente ajoutée avec succès!
+      - heading "🛒 Nouvelle vente" [level=2] [ref=e13]
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]: Produit
+          - combobox "Produit" [ref=e17]:
+            - option "Sélectionner un produit" [selected]
+            - option "Burger Classic - 8,50 €"
+            - option "Burger Cheese - 9,50 €"
+            - option "Burger Veggie - 10,50 €"
+            - option "Burger Spécial - 12,50 €"
+        - generic [ref=e18]:
+          - generic [ref=e19]: Quantité
+          - spinbutton "Quantité" [ref=e20]: "1"
+        - generic [ref=e21]:
+          - generic [ref=e22]: Date
+          - textbox "Date" [ref=e23]: 2023-06-15
+      - button "Ajouter la vente" [active] [ref=e24] [cursor=pointer]
+    - generic [ref=e25]:
+      - heading "📋 Historique des ventes" [level=2] [ref=e26]
+      - table [ref=e27]:
+        - rowgroup [ref=e28]:
+          - row "Date Produit Quantité Prix unitaire Total" [ref=e29]:
+            - cell "Date" [ref=e30]
+            - cell "Produit" [ref=e31]
+            - cell "Quantité" [ref=e32]
+            - cell "Prix unitaire" [ref=e33]
+            - cell "Total" [ref=e34]
+        - rowgroup [ref=e35]:
+          - row "15/06/2023 Burger Classic 15 8,50 € 127,50 €" [ref=e36]:
+            - cell "15/06/2023" [ref=e37]
+            - cell "Burger Classic" [ref=e38]
+            - cell "15" [ref=e39]
+            - cell "8,50 €" [ref=e40]
+            - cell "127,50 €" [ref=e41]
+          - row "15/06/2023 Burger Cheese 12 9,50 € 114,00 €" [ref=e42]:
+            - cell "15/06/2023" [ref=e43]
+            - cell "Burger Cheese" [ref=e44]
+            - cell "12" [ref=e45]
+            - cell "9,50 €" [ref=e46]
+            - cell "114,00 €" [ref=e47]
+          - row "14/06/2023 Burger Veggie 8 10,50 € 84,00 €" [ref=e48]:
+            - cell "14/06/2023" [ref=e49]
+            - cell "Burger Veggie" [ref=e50]
+            - cell "8" [ref=e51]
+            - cell "10,50 €" [ref=e52]
+            - cell "84,00 €" [ref=e53]
+          - row "14/06/2023 Burger Spécial 10 12,50 € 125,00 €" [ref=e54]:
+            - cell "14/06/2023" [ref=e55]
+            - cell "Burger Spécial" [ref=e56]
+            - cell "10" [ref=e57]
+            - cell "12,50 €" [ref=e58]
+            - cell "125,00 €" [ref=e59]
+          - row "13/06/2023 Burger Classic 18 8,50 € 153,00 €" [ref=e60]:
+            - cell "13/06/2023" [ref=e61]
+            - cell "Burger Classic" [ref=e62]
+            - cell "18" [ref=e63]
+            - cell "8,50 €" [ref=e64]
+            - cell "153,00 €" [ref=e65]
+  - text: Jan 5200€ Fév 6100€ Mar 7000€ Avr 7800€ Mai 8500€ Juin 12450€ Juil 11200€ Aoû 10100€ Sep 9000€ Oct 8000€ Nov 7000€ Déc 6100€
+  - contentinfo [ref=e66]: © 2023 Burger Social Club - Version statique de démonstration
+```

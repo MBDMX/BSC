@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burger Social Club - Accès statique</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 800px;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: #4a148c;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(90deg, #ff9800 0%, #ff5722 100%);
+            color: white;
+            font-weight: bold;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1.2rem;
+            margin: 0.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+        }
+        .button-secondary {
+            background: linear-gradient(90deg, #7e57c2 0%, #5e35b1 100%);
+        }
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .instructions {
+            text-align: left;
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+            border-left: 4px solid #4a148c;
+        }
+        .instructions h2 {
+            color: #4a148c;
+            margin-top: 0;
+        }
+        .instructions ol {
+            margin-left: 1.5rem;
+            padding-left: 0;
+        }
+        .instructions li {
+            margin-bottom: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🍔</div>
+        <h1>Burger Social Club</h1>
+        <p>
+            Bienvenue dans l'application de gestion pour Burger Social Club.
+            Cette page vous permet d'accéder directement au tableau de bord sans authentification.
+        </p>
+        
+        <a href="http://localhost:3000/dashboard" class="button" onclick="setToken()">Accéder au tableau de bord</a>
+        <a href="http://localhost:3000/gestion-ventes" class="button button-secondary" onclick="setToken()">Gestion des ventes</a>
+        
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <ol>
+                <li>Assurez-vous que le serveur Next.js est en cours d'exécution (commande <code>npm run dev</code> dans le dossier frontend)</li>
+                <li>Cliquez sur l'un des boutons ci-dessus pour accéder directement à l'application</li>
+                <li>Si vous rencontrez des problèmes d'accès, vérifiez que le serveur est bien démarré sur le port 3000</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function setToken() {
+            localStorage.setItem('access_token', 'demo_token');
+        }
+    </script>
+</body>
+</html>

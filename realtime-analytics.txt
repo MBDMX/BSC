@@ -1,0 +1,700 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/router';
+import Navbar from '../components/Navbar';
+import {
+  LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+interface RealTimeKPIs {
+  timestamp: string;
+  total_stock_value: number;
+  low_stock_products: number;
+  out_of_stock_products: number;
+  daily_revenue: number;
+  stock_predictions: Array<{
+    product_id: number;
+    product_name: string;
+    current_stock: number;
+    predicted_7d: number;
+    predicted_30d: number;
+    stockout_risk: number;
+  }>;
+  alerts: Array<{
+    type: string;
+    product_name: string;
+    severity: string;
+    message: string;
+    timestamp: string;
+  }>;
+  performance_metrics: {
+    stock_efficiency: number;
+    revenue_trend: number;
+    customer_satisfaction: number;
+  };
+}
+
+interface PowerBIDashboard {
+  dashboard_id: string;
+  dashboard_name: string;
+  embed_url: string;
+  refresh_token: string;
+  last_refresh: string;
+  datasets: string[];
+}
+
+const RealTimeAnalytics: React.FC = () => {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [loading, setLoading] = useState(true);
+  const [realtimeData, setRealtimeData] = useState<RealTimeKPIs | null>(null);
+  const [powerbiDashboard, setPowerbiDashboard] = useState<PowerBIDashboard | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(30); // seconds
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    fetchRealTimeData();
+    fetchPowerBIDashboard();
+
+    if (autoRefresh) {
+      startAutoRefresh();
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [autoRefresh, refreshInterval]);
+
+  const fetchRealTimeData = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      const response = await fetch('http://localhost:8000/analytics/powerbi/realtime-kpis', { headers });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setRealtimeData(data);
+        toast.success('Données temps réel mises à jour !');
+      } else {
+        toast.error('Erreur lors du chargement des données temps réel');
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des données temps réel:', error);
+      toast.error('Erreur lors du chargement des données temps réel');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPowerBIDashboard = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      const response = await fetch('http://localhost:8000/analytics/powerbi/dashboard', { headers });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setPowerbiDashboard(data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement du dashboard Power BI:', error);
+    }
+  };
+
+  const startAutoRefresh = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    
+    intervalRef.current = setInterval(() => {
+      fetchRealTimeData();
+    }, refreshInterval * 1000);
+  };
+
+  const stopAutoRefresh = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const handleAutoRefreshToggle = () => {
+    if (autoRefresh) {
+      stopAutoRefresh();
+    } else {
+      startAutoRefresh();
+    }
+    setAutoRefresh(!autoRefresh);
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return 'text-red-600 bg-red-100';
+      case 'high': return 'text-orange-600 bg-orange-100';
+      case 'medium': return 'text-yellow-600 bg-yellow-100';
+      case 'low': return 'text-blue-600 bg-blue-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getTrendColor = (trend: number) => {
+    if (trend > 0) return 'text-green-600';
+    if (trend < 0) return 'text-red-600';
+    return 'text-gray-600';
+  };
+
+  const getTrendIcon = (trend: number) => {
+    if (trend > 0) return '↗️';
+    if (trend < 0) return '↘️';
+    return '→';
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement du dashboard temps réel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="realtime-container">
+      <Navbar />
+      {/* Header */}
+      <div className="realtime-header">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1>🚀 Dashboard Temps Réel</h1>
+              <p>
+                Analytics en temps réel avec Power BI et Machine Learning
+              </p>
+            </div>
+            <div className="realtime-controls">
+              <div className="control-group">
+                <span className="control-label">Auto-refresh:</span>
+                <button
+                  onClick={handleAutoRefreshToggle}
+                  className={`auto-refresh-toggle ${!autoRefresh ? 'off' : ''}`}
+                >
+                  {autoRefresh ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              <div className="control-group">
+                <span className="control-label">Intervalle:</span>
+                <select
+                  value={refreshInterval}
+                  onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                  className="refresh-select"
+                >
+                  <option value={10}>10s</option>
+                  <option value={30}>30s</option>
+                  <option value={60}>1min</option>
+                  <option value={300}>5min</option>
+                </select>
+              </div>
+              <button
+                onClick={fetchRealTimeData}
+                className="refresh-button"
+              >
+                🔄 Actualiser
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="max-w-7xl mx-auto mb-8">
+        <div className="analytics-tabs">
+          <div className="tab-nav">
+            {[
+              { id: 'dashboard', name: 'Dashboard Temps Réel', icon: '📊' },
+              { id: 'powerbi', name: 'Power BI', icon: '🔗' },
+              { id: 'predictions', name: 'Prédictions ML', icon: '🤖' },
+              { id: 'alerts', name: 'Alertes', icon: '⚠️' },
+              { id: 'performance', name: 'Performance', icon: '📈' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+              >
+                {tab.icon} {tab.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto">
+        <div className="analytics-content">
+        {/* Dashboard Temps Réel */}
+        {activeTab === 'dashboard' && realtimeData && (
+          <div className="space-y-6">
+            {/* KPIs Cards */}
+            <div className="metric-grid">
+              <div className="metric-card animate-slide-in">
+                <div className="metric-icon bg-blue-100">💰</div>
+                <div className="metric-value">{realtimeData.total_stock_value.toLocaleString()} TND</div>
+                <div className="metric-label">Valeur Stock</div>
+              </div>
+
+              <div className="metric-card animate-slide-in">
+                <div className="metric-icon bg-orange-100">📦</div>
+                <div className="metric-value">{realtimeData.low_stock_products}</div>
+                <div className="metric-label">Stock Faible</div>
+              </div>
+
+              <div className="metric-card animate-slide-in">
+                <div className="metric-icon bg-red-100">❌</div>
+                <div className="metric-value">{realtimeData.out_of_stock_products}</div>
+                <div className="metric-label">Rupture Stock</div>
+              </div>
+
+              <div className="metric-card animate-slide-in">
+                <div className="metric-icon bg-green-100">📈</div>
+                <div className="metric-value">{realtimeData.daily_revenue.toLocaleString()} TND</div>
+                <div className="metric-label">Revenus/Jour</div>
+              </div>
+            </div>
+
+            {/* Performance Metrics */}
+            <div className="performance-grid">
+              <div className="performance-card">
+                <h3 className="performance-title">📊 Efficacité Stock</h3>
+                <div className="flex items-center">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-500">Efficacité</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {realtimeData.performance_metrics.stock_efficiency.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill progress-blue"
+                        style={{ width: `${realtimeData.performance_metrics.stock_efficiency}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="performance-card">
+                <h3 className="performance-title">📈 Tendance Revenus</h3>
+                <div className="flex items-center">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-500">Évolution</span>
+                      <span className={`text-sm font-medium ${getTrendColor(realtimeData.performance_metrics.revenue_trend)}`}>
+                        {getTrendIcon(realtimeData.performance_metrics.revenue_trend)} {realtimeData.performance_metrics.revenue_trend.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="progress-bar">
+                      <div
+                        className={`progress-fill ${
+                          realtimeData.performance_metrics.revenue_trend > 0 ? 'progress-green' : 'progress-red'
+                        }`}
+                        style={{ width: `${Math.abs(realtimeData.performance_metrics.revenue_trend)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="performance-card">
+                <h3 className="performance-title">😊 Satisfaction Client</h3>
+                <div className="flex items-center">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-500">Satisfaction</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {realtimeData.performance_metrics.customer_satisfaction.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill progress-green"
+                        style={{ width: `${realtimeData.performance_metrics.customer_satisfaction}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Last Update */}
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-sm text-gray-500">
+                Dernière mise à jour: {new Date(realtimeData.timestamp).toLocaleString('fr-FR')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Power BI Dashboard */}
+        {activeTab === 'powerbi' && powerbiDashboard && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">🔗 Dashboard Power BI</h2>
+              <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                <iframe
+                  src={powerbiDashboard.embed_url}
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  allowFullScreen
+                  title="Power BI Dashboard"
+                ></iframe>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-sm text-gray-500">
+                  Dashboard: {powerbiDashboard.dashboard_name}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Dernier rafraîchissement: {new Date(powerbiDashboard.last_refresh).toLocaleString('fr-FR')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ML Predictions */}
+        {activeTab === 'predictions' && realtimeData && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">🤖 Prédictions Machine Learning</h2>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Stock Predictions Chart */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Évolution des Stocks (7 jours)</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={realtimeData.stock_predictions}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="product_name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="current_stock" stroke="#3B82F6" name="Stock Actuel" />
+                      <Line type="monotone" dataKey="predicted_7d" stroke="#10B981" name="Prédiction 7j" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Stockout Risk Chart */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Risque de Rupture</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={realtimeData.stock_predictions}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="product_name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="stockout_risk" fill="#EF4444" name="Risque (%)" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Predictions Table */}
+              <div className="mt-8">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Détails des Prédictions</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Produit
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Stock Actuel
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Prédiction 7j
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Prédiction 30j
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Risque Rupture
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {realtimeData.stock_predictions.map((prediction, index) => (
+                        <tr key={index}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {prediction.product_name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {prediction.current_stock}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {prediction.predicted_7d.toFixed(0)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {prediction.predicted_30d.toFixed(0)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              prediction.stockout_risk > 70 ? 'bg-red-100 text-red-800' :
+                              prediction.stockout_risk > 40 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {prediction.stockout_risk.toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Alerts */}
+        {activeTab === 'alerts' && realtimeData && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">⚠️ Alertes Temps Réel</h2>
+              
+              {realtimeData.alerts.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">✅</div>
+                  <p className="text-gray-500">Aucune alerte active</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {realtimeData.alerts.map((alert, index) => (
+                    <div key={index} className={`p-4 rounded-lg border-l-4 ${getSeverityColor(alert.severity)}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-medium">{alert.message}</h4>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Produit: {alert.product_name} • {new Date(alert.timestamp).toLocaleString('fr-FR')}
+                          </p>
+                        </div>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          alert.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                          alert.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+                          alert.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {alert.severity.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Performance Analytics */}
+        {activeTab === 'performance' && realtimeData && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">📈 Analytics de Performance</h2>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Performance Overview - Bar Chart */}
+                <div className="chart-container">
+                  <h3 className="chart-title">📊 Vue d'Ensemble des Performances</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={[
+                      {
+                        name: 'Efficacité Stock',
+                        value: realtimeData.performance_metrics.stock_efficiency,
+                        color: '#3B82F6'
+                      },
+                      {
+                        name: 'Satisfaction Client',
+                        value: realtimeData.performance_metrics.customer_satisfaction,
+                        color: '#10B981'
+                      },
+                      {
+                        name: 'Tendance Revenus',
+                        value: Math.abs(realtimeData.performance_metrics.revenue_trend),
+                        color: realtimeData.performance_metrics.revenue_trend > 0 ? '#10B981' : '#EF4444'
+                      }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip 
+                        formatter={(value, name) => [`${value}%`, name]}
+                        labelStyle={{ color: '#333' }}
+                      />
+                      <Bar 
+                        dataKey="value" 
+                        fill="#3B82F6"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 text-center text-sm text-gray-600">
+                    <p>📈 Plus la barre est haute, meilleure est la performance</p>
+                  </div>
+                </div>
+
+                {/* Performance Trend - Line Chart */}
+                <div className="chart-container">
+                  <h3 className="chart-title">📈 Évolution des Performances (7 jours)</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={[
+                      { day: 'Lun', stock: 85, satisfaction: 92, revenue: 15 },
+                      { day: 'Mar', stock: 88, satisfaction: 94, revenue: 18 },
+                      { day: 'Mer', stock: 82, satisfaction: 89, revenue: 12 },
+                      { day: 'Jeu', stock: 90, satisfaction: 96, revenue: 22 },
+                      { day: 'Ven', stock: 87, satisfaction: 93, revenue: 19 },
+                      { day: 'Sam', stock: 92, satisfaction: 98, revenue: 25 },
+                      { day: 'Dim', stock: realtimeData.performance_metrics.stock_efficiency, 
+                        satisfaction: realtimeData.performance_metrics.customer_satisfaction, 
+                        revenue: Math.abs(realtimeData.performance_metrics.revenue_trend) }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="day" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip 
+                        formatter={(value, name) => [`${value}%`, name]}
+                        labelStyle={{ color: '#333' }}
+                      />
+                      <Legend />
+                      <Line 
+                        type="monotone" 
+                        dataKey="stock" 
+                        stroke="#3B82F6" 
+                        strokeWidth={3}
+                        name="Efficacité Stock"
+                        dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="satisfaction" 
+                        stroke="#10B981" 
+                        strokeWidth={3}
+                        name="Satisfaction Client"
+                        dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        stroke="#F59E0B" 
+                        strokeWidth={3}
+                        name="Tendance Revenus"
+                        dot={{ fill: '#F59E0B', strokeWidth: 2, r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div className="mt-4 text-center text-sm text-gray-600">
+                    <p>📊 Évolution hebdomadaire des métriques clés</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div className={`performance-summary-card blue animate-slide-in`}>
+                  <div className="card-header">
+                    <h4 className="card-title">Efficacité Stock</h4>
+                    <div className="card-icon">📦</div>
+                  </div>
+                  <div className="card-value">
+                    {realtimeData.performance_metrics.stock_efficiency.toFixed(1)}%
+                  </div>
+                  <div className="card-status">
+                    <span className="status-label">Performance:</span>
+                    <span className={`status-value ${
+                      realtimeData.performance_metrics.stock_efficiency >= 90 ? 'excellent' :
+                      realtimeData.performance_metrics.stock_efficiency >= 70 ? 'good' : 'poor'
+                    }`}>
+                      {realtimeData.performance_metrics.stock_efficiency >= 90 ? 'Excellent' :
+                       realtimeData.performance_metrics.stock_efficiency >= 70 ? 'Bon' : 'À améliorer'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className={`performance-summary-card green animate-slide-in`}>
+                  <div className="card-header">
+                    <h4 className="card-title">Satisfaction Client</h4>
+                    <div className="card-icon">😊</div>
+                  </div>
+                  <div className="card-value">
+                    {realtimeData.performance_metrics.customer_satisfaction.toFixed(1)}%
+                  </div>
+                  <div className="card-status">
+                    <span className="status-label">Niveau:</span>
+                    <span className={`status-value ${
+                      realtimeData.performance_metrics.customer_satisfaction >= 95 ? 'excellent' :
+                      realtimeData.performance_metrics.customer_satisfaction >= 85 ? 'good' : 'poor'
+                    }`}>
+                      {realtimeData.performance_metrics.customer_satisfaction >= 95 ? 'Très satisfait' :
+                       realtimeData.performance_metrics.customer_satisfaction >= 85 ? 'Satisfait' : 'À améliorer'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className={`performance-summary-card orange animate-slide-in`}>
+                  <div className="card-header">
+                    <h4 className="card-title">Tendance Revenus</h4>
+                    <div className="card-icon">💰</div>
+                  </div>
+                  <div className="card-value">
+                    {getTrendIcon(realtimeData.performance_metrics.revenue_trend)} {realtimeData.performance_metrics.revenue_trend.toFixed(1)}%
+                  </div>
+                  <div className="card-status">
+                    <span className="status-label">Évolution:</span>
+                    <span className={`status-value ${
+                      realtimeData.performance_metrics.revenue_trend > 10 ? 'positive' :
+                      realtimeData.performance_metrics.revenue_trend > 0 ? 'neutral' : 'negative'
+                    }`}>
+                      {realtimeData.performance_metrics.revenue_trend > 10 ? 'Forte croissance' :
+                       realtimeData.performance_metrics.revenue_trend > 0 ? 'Croissance' : 'Baisse'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RealTimeAnalytics; 

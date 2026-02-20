@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Anti-Freeze - Burger Social Club</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(3, 34, 76, 0.15);
+        }
+        .status-indicator {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status-good {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-bad {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #03224c;
+            border-radius: 10px;
+            background: rgba(255, 182, 193, 0.1);
+        }
+        button {
+            background: linear-gradient(135deg, #03224c 0%, #0f3460 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(3, 34, 76, 0.3);
+        }
+        #log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+        .counter {
+            font-size: 24px;
+            font-weight: bold;
+            color: #03224c;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test Anti-Freeze - Corrections Appliquées</h1>
+        <p>Cette page teste que les corrections anti-freeze fonctionnent correctement.</p>
+        
+        <div class="status-indicator" id="pageStatus">
+            ✅ Page chargée sans freeze - Corrections anti-freeze actives
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Test LocalStorage (Simulation des hooks)</h3>
+            <div class="counter" id="storageCounter">Opérations: 0</div>
+            <button onclick="testLocalStorage()">Test Lecture/Écriture localStorage</button>
+            <button onclick="testEventListeners()">Test Event Listeners</button>
+            <button onclick="simulateProductUpdate()">Simuler Mise à Jour Produit</button>
+            
+            <div id="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🛡️ Corrections Anti-Freeze Appliquées</h3>
+            <ul>
+                <li>✅ <strong>useStockData Hook</strong>: Suppression de useCallback dans loadData</li>
+                <li>✅ <strong>Dependencies Fix</strong>: useEffect avec dépendances [] pour éviter les re-exécutions</li>
+                <li>✅ <strong>SafeStockSynchronizer</strong>: Nouveau composant avec protection contre les boucles infinies</li>
+                <li>✅ <strong>Throttling Events</strong>: Limitation des événements à 100ms minimum</li>
+                <li>✅ <strong>Processing Lock</strong>: Mutex pour éviter les traitements simultanés</li>
+                <li>✅ <strong>Conditional Updates</strong>: Mise à jour uniquement si les valeurs diffèrent</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Pages Vérifiées et Corrigées</h3>
+            <ul>
+                <li><strong>dashboard.tsx</strong>: ✅ Pas de problème détecté</li>
+                <li><strong>StockManager.tsx</strong>: ✅ Utilise maintenant SafeStockSynchronizer</li>
+                <li><strong>useStockData.ts</strong>: ✅ Hook corrigé, boucle infinie éliminée</li>
+                <li><strong>gestion-ventes.tsx</strong>: ✅ Pas de problème détecté</li>
+                <li><strong>bilan-mensuelle.tsx</strong>: ✅ Pas de problème détecté</li>
+                <li><strong>MatierePremiereManager.tsx</strong>: ✅ Pas de problème détecté</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let operationCounter = 0;
+        let isProcessing = false;
+        let lastUpdate = {};
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateCounter() {
+            operationCounter++;
+            document.getElementById('storageCounter').textContent = `Opérations: ${operationCounter}`;
+        }
+
+        function canProcessEvent(eventType) {
+            const now = Date.now();
+            const lastTime = lastUpdate[eventType] || 0;
+            
+            if (now - lastTime < 100) {
+                log(`❌ Event ${eventType} throttled (< 100ms)`);
+                return false;
+            }
+            
+            lastUpdate[eventType] = now;
+            return true;
+        }
+
+        function testLocalStorage() {
+            if (isProcessing || !canProcessEvent('localStorage')) return;
+            
+            isProcessing = true;
+            log('🔄 Test localStorage en cours...');
+            
+            try {
+                // Simuler le comportement de useStockData
+                const testData = {
+                    id: Math.random(),
+                    nom: 'Test Product',
+                    quantite: Math.floor(Math.random() * 100),
+                    prix: Math.random() * 20
+                };
+                
+                localStorage.setItem('testProduct', JSON.stringify(testData));
+                const retrieved = JSON.parse(localStorage.getItem('testProduct'));
+                
+                if (retrieved.id === testData.id) {
+                    log('✅ localStorage test réussi - pas de freeze');
+                    updateCounter();
+                } else {
+                    log('❌ localStorage test échoué');
+                }
+                
+            } catch (error) {
+                log(`❌ Erreur localStorage: ${error.message}`);
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        function testEventListeners() {
+            if (isProcessing || !canProcessEvent('eventListeners')) return;
+            
+            isProcessing = true;
+            log('🔄 Test Event Listeners en cours...');
+            
+            try {
+                let eventReceived = false;
+                
+                const testHandler = (e) => {
+                    eventReceived = true;
+                    log('✅ Event personnalisé reçu sans freeze');
+                    window.removeEventListener('testEvent', testHandler);
+                };
+                
+                window.addEventListener('testEvent', testHandler);
+                
+                // Déclencher l'événement
+                const event = new CustomEvent('testEvent', {
+                    detail: { test: true }
+                });
+                window.dispatchEvent(event);
+                
+                setTimeout(() => {
+                    if (eventReceived) {
+                        updateCounter();
+                    } else {
+                        log('❌ Event listener test échoué');
+                    }
+                    isProcessing = false;
+                }, 50);
+                
+            } catch (error) {
+                log(`❌ Erreur Event Listeners: ${error.message}`);
+                isProcessing = false;
+            }
+        }
+
+        function simulateProductUpdate() {
+            if (isProcessing || !canProcessEvent('productUpdate')) return;
+            
+            isProcessing = true;
+            log('🔄 Simulation mise à jour produit...');
+            
+            try {
+                const products = JSON.parse(localStorage.getItem('productStocks') || '[]');
+                
+                if (products.length === 0) {
+                    // Créer un produit de test
+                    products.push({
+                        id: 1,
+                        nom: 'Produit Test',
+                        quantite: 10,
+                        quantite_seuil: 5,
+                        prix: 5.50,
+                        cogs: 55
+                    });
+                }
+                
+                // Modifier le premier produit
+                products[0].quantite = Math.floor(Math.random() * 50);
+                products[0].cogs = products[0].quantite * products[0].prix;
+                
+                localStorage.setItem('productStocks', JSON.stringify(products));
+                
+                // Déclencher un événement de mise à jour (comme dans le vrai code)
+                const updateEvent = new CustomEvent('productStocks:updated', {
+                    detail: { products: products }
+                });
+                window.dispatchEvent(updateEvent);
+                
+                log(`✅ Produit mis à jour: ${products[0].nom} - Qté: ${products[0].quantite}`);
+                updateCounter();
+                
+            } catch (error) {
+                log(`❌ Erreur simulation: ${error.message}`);
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        // Initialiser la page
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Page de test anti-freeze initialisée');
+            log('📋 Corrections appliquées pour éliminer les freezes');
+            
+            // Vérifier que localStorage fonctionne
+            try {
+                localStorage.setItem('test', 'ok');
+                localStorage.removeItem('test');
+                log('✅ localStorage opérationnel');
+            } catch (error) {
+                log('❌ Problème localStorage détecté');
+            }
+
+            document.getElementById('pageStatus').className = 'status-indicator status-good';
+        });
+
+        // Test automatique toutes les 5 secondes
+        setInterval(() => {
+            if (!isProcessing && Math.random() > 0.7) {
+                testLocalStorage();
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+/* yearly.css */
+.yearly-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.yearly-input {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  width: 100px;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.month-card {
+  background: linear-gradient(135deg, #d7d8fc, #fde5f7);
+  border-radius: 18px;
+  padding: 16px;
+  text-align: center;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.month-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(100, 100, 255, 0.25);
+}
+
+.day-card.selected {
+  border: 2px solid #6b1784;
+  background-color: rgba(107, 23, 132, 0.1);
+  color: #6b1784;
+  font-weight: bold;
+}
+
+.compare-table {
+  margin-top: 40px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.compare-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e4e4e4;
+  text-align: center;
+  font-size: 14px;
+}
+
+.compare-table th {
+  background-color: #efedff;
+  color: #1b1a56;
+  font-weight: 700;
+}
+
+.compare-table td:last-child {
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .month-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .compare-table table,
+  .compare-table tr,
+  .compare-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .compare-table td {
+    padding-left: 50%;
+    position: relative;
+  }
+
+  .compare-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 16px;
+    font-weight: bold;
+    color: #333;
+  }
+
+  .compare-table th {
+    display: none;
+  }
+}

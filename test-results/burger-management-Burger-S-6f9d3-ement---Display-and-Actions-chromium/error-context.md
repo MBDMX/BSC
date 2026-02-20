@@ -1,0 +1,74 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]: 🍔 Burger Social Club
+    - generic [ref=e5]:
+      - generic [ref=e6] [cursor=pointer]: Tableau de bord
+      - generic [ref=e7] [cursor=pointer]: Gestion des ventes
+      - generic [ref=e8] [cursor=pointer]: Inventaire
+      - generic [ref=e9] [cursor=pointer]: Analytics
+  - text: Jan 8450€ Fév 9200€ Mar 10100€ Avr 9800€ Mai 11200€ Juin 12450€
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - heading "📦 Gestion du stock" [level=2] [ref=e12]
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: Ingrédient
+          - combobox "Ingrédient" [ref=e16]:
+            - option "Sélectionner un ingrédient" [selected]
+            - option "Pain burger"
+            - option "Steaks hachés"
+            - option "Fromage cheddar"
+            - option "Sauce spéciale"
+        - generic [ref=e17]:
+          - generic [ref=e18]: Quantité à ajouter
+          - spinbutton "Quantité à ajouter" [ref=e19]: "10"
+      - button "Mettre à jour le stock" [ref=e20] [cursor=pointer]
+    - generic [ref=e21]:
+      - heading "🧾 Inventaire actuel" [level=2] [ref=e22]
+      - table [ref=e23]:
+        - rowgroup [ref=e24]:
+          - row "Ingrédient Quantité restante Seuil d'alerte Statut Actions" [ref=e25]:
+            - cell "Ingrédient" [ref=e26]
+            - cell "Quantité restante" [ref=e27]
+            - cell "Seuil d'alerte" [ref=e28]
+            - cell "Statut" [ref=e29]
+            - cell "Actions" [ref=e30]
+        - rowgroup [ref=e31]:
+          - row "Pain burger 120 unités 50 unités OK Commander" [ref=e32]:
+            - cell "Pain burger" [ref=e33]
+            - cell "120 unités" [ref=e34]
+            - cell "50 unités" [ref=e35]
+            - cell "OK" [ref=e36]:
+              - generic [ref=e37]: OK
+            - cell "Commander" [ref=e38]:
+              - button "Commander" [ref=e39] [cursor=pointer]
+          - row "Steaks hachés 85 unités 40 unités OK Commander" [ref=e40]:
+            - cell "Steaks hachés" [ref=e41]
+            - cell "85 unités" [ref=e42]
+            - cell "40 unités" [ref=e43]
+            - cell "OK" [ref=e44]:
+              - generic [ref=e45]: OK
+            - cell "Commander" [ref=e46]:
+              - button "Commander" [ref=e47] [cursor=pointer]
+          - row "Fromage cheddar 35 unités 30 unités Attention Commander" [ref=e48]:
+            - cell "Fromage cheddar" [ref=e49]
+            - cell "35 unités" [ref=e50]
+            - cell "30 unités" [ref=e51]
+            - cell "Attention" [ref=e52]:
+              - generic [ref=e53]: Attention
+            - cell "Commander" [ref=e54]:
+              - button "Commander" [ref=e55] [cursor=pointer]
+          - row "Sauce spéciale 15 unités 20 unités Rupture Commander urgent" [ref=e56]:
+            - cell "Sauce spéciale" [ref=e57]
+            - cell "15 unités" [ref=e58]
+            - cell "20 unités" [ref=e59]
+            - cell "Rupture" [ref=e60]:
+              - generic [ref=e61]: Rupture
+            - cell "Commander urgent" [ref=e62]:
+              - button "Commander urgent" [ref=e63] [cursor=pointer]
+  - text: Jan 5200€ Fév 6100€ Mar 7000€ Avr 7800€ Mai 8500€ Juin 12450€ Juil 11200€ Aoû 10100€ Sep 9000€ Oct 8000€ Nov 7000€ Déc 6100€
+  - contentinfo [ref=e64]: © 2023 Burger Social Club - Version statique de démonstration
+```

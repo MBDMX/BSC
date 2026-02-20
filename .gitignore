@@ -1,0 +1,44 @@
+# .gitignore
+node_modules
+
+# Environment variables (never commit these)
+.env
+.env.local
+.env.*.local
+
+# Backend
+backend/.env
+backend/.venv/
+backend/__pycache__/
+backend/*.db
+backend/uploads/
+backend/venv/
+
+# Frontend
+frontend/.env
+frontend/.next/
+frontend/node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+*.pyc
+__pycache__/
+*.egg-info/
+.venv/
+
+# Logs
+*.log
+server_log.txt
+server_output_log.txt
+server_v2_log.txt
+
+# Temporary files
+*.tmp
+__dummy__
