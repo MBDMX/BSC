@@ -1,7 +1,7 @@
 // frontend/pages/login.tsx
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import axios from "axios";
+import { supabase } from '../lib/supabaseClient';
 import styles from "../styles/login.module.css";
 
 export default function LoginPage() {
@@ -21,44 +21,59 @@ export default function LoginPage() {
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
+  e.preventDefault();
+  setIsLoading(true);
+  setError("");
 
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      let token = "fake_access_token";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  let token = "";
 
-      try {
-        const params = new URLSearchParams();
-        params.append('username', username);
-        params.append('password', password);
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-        const response = await fetch(`${apiUrl}/token`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: params,
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          token = data.access_token;
-        }
-      } catch (networkErr) {
-        console.log("Mode cloud distant: Authentification hors-ligne activée");
+    if (supabaseUrl && supabaseKey) {
+      // Supabase authentication (Vercel environment)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: username,
+        password: password,
+      });
+      if (error) {
+        setError(error.message);
+        return;
       }
+      token = data.session?.access_token ?? "";
+    } else {
+      // Local development: FastAPI token endpoint
+      const params = new URLSearchParams();
+      params.append('username', username);
+      params.append('password', password);
 
-      localStorage.setItem("access_token", token);
-      router.push("/dashboard");
-    } catch (err) {
-      setError("Erreur de connexion.");
-      console.error("Erreur de connexion:", err);
-    } finally {
-      setIsLoading(false);
+      const response = await fetch(`${apiUrl}/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        setError(errData.detail || "Identifiants incorrects");
+        return;
+      }
+      const data = await response.json();
+      token = data.access_token;
     }
-  };
+
+    // Store token and navigate to dashboard
+    localStorage.setItem("access_token", token);
+    router.push("/dashboard");
+  } catch (err) {
+    setError("Erreur de connexion.");
+    console.error("Erreur de connexion:", err);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleForgotPassword = () => {
     // Fonction pour gérer le mot de passe oublié
