@@ -25,7 +25,7 @@ if not exist node_modules (
 echo.
 
 echo [3/4] Demarrage du backend...
-start cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && python start.py"
+start cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && python run.py"
 timeout /t 3 /nobreak > nul
 echo.
 

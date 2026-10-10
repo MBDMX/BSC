@@ -5,20 +5,23 @@ Application de gestion pour restaurant de burgers avec interface moderne et API 
 ## 🚀 Démarrage Rapide
 
 ### Démarrage Automatique (Recommandé)
+
 Double-cliquez sur `demarrer.bat` à la racine du projet.
 
 ### Démarrage Manuel
 
 #### Backend
+
 ```bash
 cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-python start.py
+python run.py
 ```
 
 #### Frontend
+
 ```bash
 cd frontend
 npm install
@@ -26,17 +29,20 @@ npm run dev
 ```
 
 ## 📍 URLs
+
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8000
 - **Documentation API**: http://localhost:8000/docs
 
 ## 🏗️ Structure
+
 - `frontend/` - Application Next.js avec TypeScript
 - `backend/` - API FastAPI avec SQLite
 - `database/` - Données et configuration
 - `tests/` - Tests Playwright
 
 ## 📊 Fonctionnalités
+
 - ✅ Gestion du stock avec seuils
 - ✅ Gestion du menu et recettes
 - ✅ Analyses et rapports
@@ -44,6 +50,7 @@ npm run dev
 - ✅ Interface responsive
 
 ## 🛠️ Technologies
+
 - **Frontend**: Next.js, TypeScript, Tailwind CSS
 - **Backend**: FastAPI, SQLAlchemy, SQLite
 - **Tests**: Playwright
@@ -57,25 +64,30 @@ npm run dev
 ### 📊 Fonctionnalités Avancées
 
 #### 🔁 Approvisionnement
+
 - Interface pour ajouter des entrées de stock
 - Mise à jour automatique des quantités
 - Gestion des fournisseurs
 
 #### 📤 Consommation/Déstockage
+
 - Décrémenter les MP selon leur recette
 - Incrémenter les PF si c'est une production
 - Décrémenter les PF si c'est une vente
 
 #### ⏳ Suivi des Seuils
+
 - Avertissement visuel si une MP descend en-dessous du seuil
 - Affichage en rouge/alerte pour les stocks faibles
 - Compteur de produits en rupture
 
 #### 📆 Gestion des Dates
+
 - Lister les produits proches de la date de péremption
 - Tri des lots par date (FIFO)
 
 ### 🎨 Interface Moderne
+
 - **Cards CSS** : Chaque produit fini dans une card moderne
 - **Chart.js** : Graphiques pour visualiser les données
 - **Responsive** : Interface adaptée mobile/desktop
@@ -116,6 +128,7 @@ frontend/
 ## 🎯 Fonctionnalités Clés
 
 ### ✅ Implémentées
+
 - [x] Persistance locale des données
 - [x] Édition en ligne (clic pour modifier)
 - [x] Gestion complète des matières premières
@@ -126,6 +139,7 @@ frontend/
 - [x] Interface responsive
 
 ### 🔄 Workflow de Production
+
 - [x] Ajout de matières premières
 - [x] Production de produits finis
 - [x] Consommation automatique des MP
@@ -135,6 +149,7 @@ frontend/
 ## 🎨 Design System
 
 ### Couleurs
+
 - **Bleu** : Stock/Gestion
 - **Vert** : Menu/Produits
 - **Violet** : Matières Premières
@@ -143,6 +158,7 @@ frontend/
 - **Rose** : Desserts
 
 ### Icons
+
 - 📦 Stock
 - 🍽️ Menu
 - 🧪 Matières Premières

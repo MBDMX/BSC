@@ -104,7 +104,7 @@ export default function BurgerPrice() {
 
   return (
     <ProtectedRoute>
-      <EnhancedStockSynchronizer />
+      <StockSynchronizer />
       <Navbar />
       <div className="burger-price-container bg-gray-50 min-h-screen">
         <div className="burger-price-header px-2 sm:px-4 md:px-8">

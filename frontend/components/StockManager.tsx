@@ -224,7 +224,7 @@ const StockManagerComponent = () => {
 
       // Mettre à jour le localStorage
       const savedProducts = localStorage.getItem('productStocks');
-      let productStocksData = [];
+      let productStocksData: any[] = [];
 
       if (savedProducts) {
         productStocksData = JSON.parse(savedProducts);

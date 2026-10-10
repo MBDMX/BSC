@@ -3,7 +3,12 @@ import { IngredientsManager } from '../utils/ingredientsManager';
 import { GlobalDataManager } from '../utils/globalDataManager';
 
 export default function Diagnostic() {
-  const [diagnosticData, setDiagnosticData] = useState({
+  const [diagnosticData, setDiagnosticData] = useState<{
+    ingredients: any[];
+    localStorage: any[];
+    menuItems: any[];
+    sales: any[];
+  }>({
     ingredients: [],
     localStorage: [],
     menuItems: [],
@@ -19,7 +24,7 @@ export default function Diagnostic() {
     const ingredients = IngredientsManager.getCurrentIngredients();
     
     // Vérifier tout le localStorage
-    const localStorageData = [];
+    const localStorageData: any[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key) {

@@ -484,7 +484,7 @@ export default function MatierePremiereManager({ onDataChange }: MatierePremiere
                               <Text fontSize="9px" color="gray.500">{matiere.code}</Text>
                             </VStack>
                             <Badge colorScheme={matiere.categorie === 'Ingredient' ? 'blue' : 'orange'} borderRadius="full" px={1} fontSize="8px">
-                              {matiere.categorie.substring(0, 3)}
+                              {(matiere.categorie || 'Ing').substring(0, 3)}
                             </Badge>
                           </Flex>
 
