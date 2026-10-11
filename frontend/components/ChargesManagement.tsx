@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import { toast } from 'react-toastify';
 import { formatQuantity, formatCurrency, parseRounded } from '../utils/formatters';
 import {
@@ -52,7 +53,7 @@ interface Product {
     unite: string;
 }
 
-import { supabase } from '../lib/supabaseClient';
+
 
 export default function ChargesManagement() {
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -147,23 +148,28 @@ export default function ChargesManagement() {
             }
         }
 
-        // Cloud localStorage fallback:
+        // Cloud Supabase fallback — no demo data:
         try {
-            const saved = localStorage.getItem('bsc_cloud_expenses');
-            if (saved) {
-                setExpenses(JSON.parse(saved));
+            const { data: supExpenses } = await supabase
+                .from('expenses')
+                .select('*')
+                .eq('year', year)
+                .eq('month', month);
+            if (supExpenses && supExpenses.length > 0) {
+                setExpenses(supExpenses);
             } else {
-                const defaultExpenses: Expense[] = [
-                    { id: 1, nom: 'Loyer Local', type: 'FIXE', montant: 1200, date: `${year}-${String(month).padStart(2, '0')}-01`, recurrence: 'MENSUEL' },
-                    { id: 2, nom: 'Facture STEG (Électricité)', type: 'VARIABLE', montant: 340, date: `${year}-${String(month).padStart(2, '0')}-10`, recurrence: 'MENSUEL' },
-                    { id: 3, nom: 'Achat Pain Burger x100', type: 'INGREDIENT_PURCHASE', montant: 150, date: `${year}-${String(month).padStart(2, '0')}-12`, recurrence: 'AUCUNE', quantite: 100, unite: 'pièce' }
-                ];
-                setExpenses(defaultExpenses);
-                localStorage.setItem('bsc_cloud_expenses', JSON.stringify(defaultExpenses));
+                setExpenses([]);
             }
-            setMonthlyRevenue(3200);
+
+            const { data: supSales } = await supabase
+                .from('sales')
+                .select('total');
+            const totalRev = supSales ? supSales.reduce((s: number, r: any) => s + (r.total || 0), 0) : 0;
+            setMonthlyRevenue(totalRev);
         } catch (e) {
             console.warn(e);
+            setExpenses([]);
+            setMonthlyRevenue(0);
         } finally {
             setLoading(false);
         }

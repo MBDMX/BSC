@@ -63,11 +63,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         details: { status: 'sent', id: data.id, to: targetEmail }
       });
     } else {
-      console.warn('Resend API response not OK:', data);
-      // If Resend free tier has restrictions (e.g. testing domain restrictions)
-      return res.status(200).json({
-        message: 'Notification traitée',
-        details: { status: 'sent', note: data.message || 'Mode Sandbox actif', to: targetEmail }
+      console.error('Resend API error response:', data);
+      return res.status(400).json({
+        error: data.message || 'Erreur Resend',
+        details: { status: 'failed', resend_error: data, to: targetEmail }
       });
     }
   } catch (err: any) {

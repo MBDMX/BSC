@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import {
     Box,
     Button,
@@ -139,50 +140,42 @@ export default function MonthlyReport() {
             }
         }
 
-        // Cloud / Supabase fallback
+        // Cloud Supabase fallback — no demo data:
         try {
-            // Load cloud sales
-            let cloudSales: Transaction[] = [];
-            const savedSales = localStorage.getItem('bsc_cloud_sales');
-            if (savedSales) {
-                cloudSales = JSON.parse(savedSales);
-            } else {
-                cloudSales = [
-                    { id: 1, produit_nom: 'Burger Classic', quantite: 3, prix_unitaire: 14.5, total: 43.5, date: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-05 13:00:00` },
-                    { id: 2, produit_nom: 'Burger BBQ Bacon', quantite: 4, prix_unitaire: 17.0, total: 68.0, date: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-12 20:30:00` }
-                ];
-            }
+            // Fetch real sales from Supabase
+            const { data: supSales } = await supabase
+                .from('sales')
+                .select('*')
+                .gte('date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`)
+                .lte('date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-31`);
 
-            const totalRev = cloudSales.reduce((acc, curr) => acc + curr.total, 0);
-            const totalItems = cloudSales.reduce((acc, curr) => acc + curr.quantite, 0);
+            const cloudSales = supSales || [];
+            const totalRev = cloudSales.reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
+            const totalItems = cloudSales.reduce((acc: number, curr: any) => acc + (curr.quantite || 0), 0);
 
             setData({
                 summary: {
-                    revenue: totalRev || 2450.0,
-                    transaction_count: cloudSales.length || 45,
-                    total_items: totalItems || 82
+                    revenue: totalRev,
+                    transaction_count: cloudSales.length,
+                    total_items: totalItems
                 },
                 transactions: cloudSales
             });
 
-            // Load cloud expenses
-            let cloudExp: Expense[] = [];
-            const savedExp = localStorage.getItem('bsc_cloud_expenses');
-            if (savedExp) {
-                cloudExp = JSON.parse(savedExp);
-            } else {
-                cloudExp = [
-                    { id: 1, nom: 'Loyer Local', type: 'FIXE', montant: 1200, date: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01` },
-                    { id: 2, nom: 'Facture Électricité', type: 'VARIABLE', montant: 340, date: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-10` },
-                    { id: 3, nom: 'Achat Pain Burger x100', type: 'INGREDIENT_PURCHASE', montant: 150, date: `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-12` }
-                ];
-            }
+            // Fetch real expenses from Supabase
+            const { data: supExp } = await supabase
+                .from('expenses')
+                .select('*')
+                .eq('year', selectedYear)
+                .eq('month', selectedMonth);
+
+            const cloudExp = supExp || [];
             setExpenses(cloudExp);
 
-            const fixes = cloudExp.filter(e => e.type === 'FIXE').reduce((s, e) => s + e.montant, 0);
-            const variables = cloudExp.filter(e => e.type === 'VARIABLE').reduce((s, e) => s + e.montant, 0);
-            const ingredients = cloudExp.filter(e => e.type === 'INGREDIENT_PURCHASE').reduce((s, e) => s + e.montant, 0);
-            const autres = cloudExp.filter(e => !['FIXE', 'VARIABLE', 'INGREDIENT_PURCHASE'].includes(e.type)).reduce((s, e) => s + e.montant, 0);
+            const fixes = cloudExp.filter((e: any) => e.type === 'FIXE').reduce((s: number, e: any) => s + e.montant, 0);
+            const variables = cloudExp.filter((e: any) => e.type === 'VARIABLE').reduce((s: number, e: any) => s + e.montant, 0);
+            const ingredients = cloudExp.filter((e: any) => e.type === 'INGREDIENT_PURCHASE').reduce((s: number, e: any) => s + e.montant, 0);
+            const autres = cloudExp.filter((e: any) => !['FIXE', 'VARIABLE', 'INGREDIENT_PURCHASE'].includes(e.type)).reduce((s: number, e: any) => s + e.montant, 0);
 
             setChargesData({
                 charges_fixes: fixes,
@@ -194,6 +187,9 @@ export default function MonthlyReport() {
             });
         } catch (e) {
             console.warn(e);
+            setData({ summary: { revenue: 0, transaction_count: 0, total_items: 0 }, transactions: [] });
+            setExpenses([]);
+            setChargesData({ charges_fixes: 0, charges_variables: 0, charges_ingredients: 0, charges_autres: 0, total_charges: 0, nombre_charges: 0 });
         } finally {
             setLoading(false);
         }

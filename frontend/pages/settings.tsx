@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import Layout from '../components/Layout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import {
@@ -202,14 +203,23 @@ export default function Settings() {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => null);
             }
-            localStorage.removeItem('menuProduits');
-            localStorage.removeItem('matieresPremieres');
+
+            // Cloud Supabase: Delete only transactions (sales, expenses), keep products & recipes intact
+            try {
+                await supabase.from('sales').delete().neq('id', 0);
+                await supabase.from('expenses').delete().neq('id', 0);
+            } catch (err) {
+                console.warn('Supabase reset warning:', err);
+            }
+
+            // Clear local cached transactions
             localStorage.removeItem('bsc_cloud_sales');
             localStorage.removeItem('bsc_cloud_expenses');
             localStorage.removeItem('bsc_cloud_invoices');
+            
             toast({
                 title: '♻️ Système Réinitialisé',
-                description: 'Le système et les caches locaux ont été réinitialisés.',
+                description: 'Ventes et dépenses effacées. Le menu et les ingrédients restent conservés.',
                 status: 'success',
                 duration: 5000,
                 isClosable: true,

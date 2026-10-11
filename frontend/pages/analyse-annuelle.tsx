@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { supabase } from '../lib/supabaseClient';
 
 interface BilanData {
   period: string;
@@ -71,22 +72,46 @@ const AnnualAnalysis: React.FC = () => {
         }
       }
 
-      // Cloud fallback simulation:
-      const fallbackMonths: BilanData[] = Array.from({ length: 12 }, (_, i) => {
-        const rev = 2800 + Math.floor(Math.sin(i + 1) * 600) + (i * 120);
-        const charges = Math.floor(rev * 0.42);
+      // Cloud Supabase fallback (Real data, zero if none):
+      const { data: supSales } = await supabase
+        .from('sales')
+        .select('*')
+        .gte('date', `${selectedYear}-01-01`)
+        .lte('date', `${selectedYear}-12-31`);
+
+      const { data: supExp } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('year', selectedYear);
+
+      const monthsData: BilanData[] = Array.from({ length: 12 }, (_, i) => {
+        const monthNum = i + 1;
+        const monthStr = monthNum.toString().padStart(2, '0');
+        const mSales = (supSales || []).filter((s: any) => s.date && s.date.startsWith(`${selectedYear}-${monthStr}`));
+        const mExp = (supExp || []).filter((e: any) => e.month === monthNum);
+
+        const rev = mSales.reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
+        const charges = mExp.reduce((acc: number, curr: any) => acc + (curr.montant || 0), 0);
         const prof = rev - charges;
+
         return {
-          period: `${selectedYear}-${(i + 1).toString().padStart(2, '0')}`,
+          period: `${selectedYear}-${monthStr}`,
           revenue: rev,
           total_charges: charges,
           profit: prof,
-          transaction_count: Math.floor(rev / 25)
+          transaction_count: mSales.length
         };
       });
-      setData(fallbackMonths);
+      setData(monthsData);
     } catch (err) {
       console.warn(err);
+      setData(Array.from({ length: 12 }, (_, i) => ({
+        period: `${selectedYear}-${(i + 1).toString().padStart(2, '0')}`,
+        revenue: 0,
+        total_charges: 0,
+        profit: 0,
+        transaction_count: 0
+      })));
     } finally {
       setLoading(false);
     }
@@ -131,23 +156,52 @@ const AnnualAnalysis: React.FC = () => {
         }
       }
 
-      // Cloud fallback daily simulation:
+      // Cloud Supabase fallback for days:
+      const monthPrefix = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}`;
+      const { data: supSales } = await supabase
+        .from('sales')
+        .select('*')
+        .gte('date', `${monthPrefix}-01`)
+        .lte('date', `${monthPrefix}-31`);
+
+      const { data: supExp } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('year', selectedYear)
+        .eq('month', selectedMonth);
+
       const allDays: BilanData[] = [];
       for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-        const rev = 90 + Math.floor(Math.sin(day) * 35) + (day % 7 === 5 || day % 7 === 6 ? 80 : 0);
-        const charges = Math.floor(rev * 0.4);
+        const dateStr = `${monthPrefix}-${day.toString().padStart(2, '0')}`;
+        const daySales = (supSales || []).filter((s: any) => s.date && s.date.startsWith(dateStr));
+        const dayExp = (supExp || []).filter((e: any) => e.date && e.date.startsWith(dateStr));
+
+        const rev = daySales.reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
+        const charges = dayExp.reduce((acc: number, curr: any) => acc + (curr.montant || 0), 0);
+
         allDays.push({
           period: dateStr,
           revenue: rev,
           total_charges: charges,
           profit: rev - charges,
-          transaction_count: Math.max(1, Math.floor(rev / 20))
+          transaction_count: daySales.length
         });
       }
       setData(allDays);
     } catch (err) {
       console.warn(err);
+      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+      const allDays: BilanData[] = [];
+      for (let day = 1; day <= daysInMonth; day++) {
+        allDays.push({
+          period: `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`,
+          revenue: 0,
+          total_charges: 0,
+          profit: 0,
+          transaction_count: 0
+        });
+      }
+      setData(allDays);
     } finally {
       setLoading(false);
     }
