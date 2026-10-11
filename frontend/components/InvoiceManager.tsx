@@ -156,6 +156,43 @@ export default function InvoiceManager() {
         const formData = new FormData();
         formData.append('file', file);
 
+        if (!isLocalhost) {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const imgData = event.target?.result as string;
+                const newInv: Invoice = {
+                    id: Date.now(),
+                    filename: file.name,
+                    supplier_name: 'Fournisseur Inconnu',
+                    total_amount: 0,
+                    invoice_date: new Date().toISOString().split('T')[0],
+                    status: 'draft',
+                    image_path: imgData || '',
+                    date_upload: new Date().toISOString()
+                };
+                const updated = [newInv, ...invoices];
+                setInvoices(updated);
+                localStorage.setItem('bsc_cloud_invoices', JSON.stringify(updated));
+                setSelectedInvoice(newInv);
+                setEditData({
+                    supplier_name: 'Fournisseur Inconnu',
+                    total_amount: 0,
+                    date: new Date().toISOString().split('T')[0]
+                });
+                setInvoiceItems([]);
+                onOpen();
+                toast({
+                    title: "Facture importée",
+                    description: "Vous pouvez renseigner les articles et valider l'entrée en stock.",
+                    status: "info",
+                    duration: 4000
+                });
+                setUploading(false);
+            };
+            reader.readAsDataURL(file);
+            return;
+        }
+
         try {
             const res = await fetch(`${API_URL}/invoices/upload`, {
                 method: 'POST',
@@ -199,6 +236,41 @@ export default function InvoiceManager() {
     };
 
     const confirmInvoice = async () => {
+        if (!isLocalhost) {
+            const updated = invoices.map(inv => {
+                if (inv.id === selectedInvoice.id) {
+                    return {
+                        ...inv,
+                        status: 'confirmed' as const,
+                        supplier_name: editData.supplier_name,
+                        total_amount: editData.total_amount,
+                        invoice_date: editData.date
+                    };
+                }
+                return inv;
+            });
+            setInvoices(updated);
+            localStorage.setItem('bsc_cloud_invoices', JSON.stringify(updated));
+
+            for (const it of invoiceItems) {
+                if (it.product_id) {
+                    try {
+                        const { data: currentProd } = await supabase.from('products').select('quantite').eq('id', it.product_id).single();
+                        if (currentProd) {
+                            await supabase.from('products').update({
+                                quantite: (currentProd.quantite || 0) + it.quantite
+                            }).eq('id', it.product_id);
+                        }
+                    } catch (e) {
+                        console.warn('Error updating ingredient stock:', e);
+                    }
+                }
+            }
+            toast({ title: "Confirmé", description: "Stocks mis à jour dans le Cloud.", status: "success" });
+            onClose();
+            return;
+        }
+
         try {
             const payload = {
                 ...editData,
@@ -207,7 +279,7 @@ export default function InvoiceManager() {
                     .map(it => ({
                         product_id: it.product_id,
                         product_name: it.product_name,
-                        quantity: it.quantite,  // ✅ Transform quantite -> quantity
+                        quantity: it.quantite,
                         unit_price: it.prix_unitaire,
                         total: it.total
                     }))
@@ -234,6 +306,16 @@ export default function InvoiceManager() {
 
     const deleteInvoice = async (id: number) => {
         if (!confirm('Voulez-vous vraiment supprimer cette facture ?')) return;
+
+        if (!isLocalhost) {
+            const updated = invoices.filter(inv => inv.id !== id);
+            setInvoices(updated);
+            localStorage.setItem('bsc_cloud_invoices', JSON.stringify(updated));
+            toast({ title: "Supprimé", status: "success" });
+            if (selectedInvoice?.id === id) onClose();
+            return;
+        }
+
         try {
             const res = await fetch(`${API_URL}/invoices/${id}`, {
                 method: 'DELETE',
@@ -250,6 +332,24 @@ export default function InvoiceManager() {
     };
 
     const updateInvoiceMetadata = async () => {
+        if (!isLocalhost) {
+            const updated = invoices.map(inv => {
+                if (inv.id === selectedInvoice.id) {
+                    return {
+                        ...inv,
+                        supplier_name: editData.supplier_name,
+                        total_amount: editData.total_amount,
+                        invoice_date: editData.date
+                    };
+                }
+                return inv;
+            });
+            setInvoices(updated);
+            localStorage.setItem('bsc_cloud_invoices', JSON.stringify(updated));
+            toast({ title: "Mis à jour", description: "Données de la facture sauvegardées.", status: "success" });
+            return;
+        }
+
         try {
             const res = await fetch(`${API_URL}/invoices/${selectedInvoice.id}`, {
                 method: 'PUT',

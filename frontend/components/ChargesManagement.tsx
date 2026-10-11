@@ -223,6 +223,23 @@ export default function ChargesManagement() {
             const updated = [expItem, ...expenses];
             setExpenses(updated);
             localStorage.setItem('bsc_cloud_expenses', JSON.stringify(updated));
+
+            // Sync stock increment to Supabase in cloud
+            const prodId = parseInt(newExpense.product_id);
+            const addedQty = parseRounded(newExpense.quantity);
+            (async () => {
+                try {
+                    const { data } = await supabase.from('products').select('quantite').eq('id', prodId).single();
+                    if (data) {
+                        await supabase.from('products').update({
+                            quantite: (data.quantite || 0) + addedQty
+                        }).eq('id', prodId);
+                    }
+                } catch (e) {
+                    console.warn('Supabase stock update error:', e);
+                }
+            })();
+
             toast.success('Achat d\'ingrédient enregistré !');
             resetForm();
             return;

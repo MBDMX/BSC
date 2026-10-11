@@ -36,14 +36,15 @@ export default function Settings() {
     const fetchSettings = async () => {
         try {
             const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-            if (isLocalhost) {
-                const token = localStorage.getItem('access_token');
-                const res = await fetch('http://localhost:8000/settings', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setSettings(data);
+            const url = isLocalhost ? 'http://localhost:8000/settings' : '/api/settings';
+            const headers: Record<string, string> = {};
+            if (isLocalhost) headers['Authorization'] = `Bearer ${localStorage.getItem('access_token')}`;
+
+            const res = await fetch(url, { headers });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && Object.keys(data).length > 0) {
+                    setSettings(prev => ({ ...prev, ...data }));
                     return;
                 }
             }
@@ -71,17 +72,15 @@ export default function Settings() {
         try {
             localStorage.setItem('app_settings', JSON.stringify(settings));
             const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
-            if (isLocalhost) {
-                const token = localStorage.getItem('access_token');
-                await fetch('http://localhost:8000/settings', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify(settings)
-                }).catch(() => null);
-            }
+            const url = isLocalhost ? 'http://localhost:8000/settings' : '/api/settings';
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (isLocalhost) headers['Authorization'] = `Bearer ${localStorage.getItem('access_token')}`;
+
+            await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(settings)
+            }).catch(() => null);
             toast({
                 title: '✅ Paramètres sauvegardés',
                 status: 'success',
@@ -205,6 +204,9 @@ export default function Settings() {
             }
             localStorage.removeItem('menuProduits');
             localStorage.removeItem('matieresPremieres');
+            localStorage.removeItem('bsc_cloud_sales');
+            localStorage.removeItem('bsc_cloud_expenses');
+            localStorage.removeItem('bsc_cloud_invoices');
             toast({
                 title: '♻️ Système Réinitialisé',
                 description: 'Le système et les caches locaux ont été réinitialisés.',
