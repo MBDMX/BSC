@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Vérifier si l'utilisateur est déjà connecté
+  // Automatically redirect if already logged in
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (token) {
@@ -29,24 +29,33 @@ export default function LoginPage() {
     let token = "";
 
     try {
-      // Determine environment by hostname (Vercel => not localhost)
-      const isLocalhost = typeof window !== "undefined" && window.location.hostname.includes("localhost");
+      // Detect if we are running on Vercel (not localhost)
+      const isLocalhost =
+        typeof window !== "undefined" &&
+        window.location.hostname.includes("localhost");
+
       if (!isLocalhost) {
-        // Cloud environment – use Supabase authentication
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: username,
-          password: password,
-        });
-        if (error) {
-          setError(error.message);
+        // ── Vercel / Cloud ─────────────────────────────────────────
+        // Use Supabase email-based authentication.
+        // The "username" field value is treated as the email address.
+        const { data, error: supabaseError } =
+          await supabase.auth.signInWithPassword({
+            email: username,
+            password: password,
+          });
+
+        if (supabaseError) {
+          setError(supabaseError.message);
           return;
         }
+
         token = data.session?.access_token ?? "";
       } else {
-        // Local development – FastAPI token endpoint
+        // ── Local development ───────────────────────────────────────
+        // Use the local FastAPI /token endpoint.
         const params = new URLSearchParams();
-        params.append('username', username);
-        params.append('password', password);
+        params.append("username", username);
+        params.append("password", password);
 
         const response = await fetch(`${apiUrl}/token`, {
           method: "POST",
@@ -59,23 +68,23 @@ export default function LoginPage() {
           setError(errData.detail || "Identifiants incorrects");
           return;
         }
+
         const data = await response.json();
         token = data.access_token;
       }
 
-      // Store token and navigate to dashboard
+      // Store token & go to dashboard
       localStorage.setItem("access_token", token);
       router.push("/dashboard");
     } catch (err) {
       setError("Erreur de connexion.");
-      console.error("Erreur de connexion:", err);
+      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleForgotPassword = () => {
-    // Fonction pour gérer le mot de passe oublié
     alert("Fonctionnalité mot de passe oublié à implémenter");
   };
 
@@ -91,7 +100,7 @@ export default function LoginPage() {
           <span className={styles["burger-icon"]}>🍔</span> BURGER SOCIAL CLUB
         </h1>
         <div className={styles.subtitle}>
-          Gestion intelligente & Analytics avancés
+          Gestion intelligente &amp; Analytics avancés
         </div>
       </div>
 
@@ -101,13 +110,13 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin}>
           <div className={styles["form-group"]}>
-            <label htmlFor="username">Nom d'utilisateur</label>
+            <label htmlFor="username">Nom d&apos;utilisateur / Email</label>
             <input
               id="username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Entrez votre nom d'utilisateur"
+              placeholder="Entrez votre email"
               required
             />
           </div>
@@ -127,7 +136,11 @@ export default function LoginPage() {
                 type="button"
                 className={styles["eye-icon"]}
                 onClick={togglePasswordVisibility}
-                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                aria-label={
+                  showPassword
+                    ? "Masquer le mot de passe"
+                    : "Afficher le mot de passe"
+                }
               >
                 {showPassword ? "👁️" : "👁️‍🗨️"}
               </button>
@@ -143,9 +156,7 @@ export default function LoginPage() {
           </button>
 
           {error && (
-            <div className={styles["error-message"]}>
-              {error}
-            </div>
+            <div className={styles["error-message"]}>{error}</div>
           )}
         </form>
 
