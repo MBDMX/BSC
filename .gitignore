@@ -15,6 +15,7 @@ backend/uploads/
 backend/venv/
 
 # Frontend
+.next/
 frontend/.env
 frontend/.next/
 frontend/node_modules/

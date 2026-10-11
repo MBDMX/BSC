@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/router';
 import { formatQuantity, formatCurrency } from '../utils/formatters';
+import { supabase } from '../lib/supabaseClient';
 import {
   Box,
   Button,
@@ -351,86 +352,175 @@ const StockManagement: React.FC = () => {
         return;
       }
 
-      // 1. Parallel Fetching for speed
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
       const dateStr = format(viewDate, 'yyyy-MM-dd');
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
 
-      const [dashRes, histRes, veilleRes, predRes] = await Promise.all([
-        fetch('http://localhost:8000/dashboard-data', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`http://localhost:8000/stock-history-date/${dateStr}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`http://localhost:8000/stock-history-date/${yesterdayStr}`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('http://localhost:8000/stock-prediction', { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => null)
-      ]);
+      let loadedFromLocal = false;
 
-      if (dashRes.ok) {
-        const data = await dashRes.json();
-        const mappedProducts = (data.products || [])
-          .map((p: any) => ({
-            id: p.id.toString(),
-            name: p.nom,
-            quantity: p.quantite,
-            price: p.cout_unitaire,
-            cogs: (p.quantite || 0) * (p.cout_unitaire || 0),
-            threshold: p.seuil,
-            categorie: p.categorie,
-            unite: p.unite || detectUnite(p.nom),
-            type: p.type || (p.categorie === 'Main Product' ? 'PRODUCT' : 'ING'),
-            image_url: p.image_url,
-            recipe: p.recipe || {}
-          } as any))
-          .sort((a: any, b: any) => {
-            const typeOrder = { 'PRODUCT': 1, 'PREP': 2, 'ING': 3 };
-            const tA = typeOrder[a.type as keyof typeof typeOrder] || 99;
-            const tB = typeOrder[b.type as keyof typeof typeOrder] || 99;
-            if (tA !== tB) return tA - tB;
-            return a.name.localeCompare(b.name);
-          });
-        setProducts(mappedProducts);
-        checkAndNotifyLowStock(mappedProducts);
+      if (isLocalhost) {
+        try {
+          const [dashRes, histRes, veilleRes, predRes] = await Promise.all([
+            fetch('http://localhost:8000/dashboard-data', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`http://localhost:8000/stock-history-date/${dateStr}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`http://localhost:8000/stock-history-date/${yesterdayStr}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('http://localhost:8000/stock-prediction', { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => null)
+          ]);
 
-        // 2. Process History
-        if (histRes.ok) {
-          const histData = await histRes.json();
-          const entries = histData.entries || [];
-          const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
-          const mappedHistory = (data.products || [])
-            .filter((p: any) => p.categorie === 'Ingredient' || p.type === 'ING' || p.type === 'PREP')
-            .map((p: any) => {
-              const histEntry = entries.find((s: any) => s.product_id === p.id);
-              const fallbackQty = isToday ? (p.quantite || 0) : 0;
-              return {
-                id: histEntry ? histEntry.id : null,
-                productId: p.nom,
-                isMain: p.categorie !== "Ingredient",
-                unit: p.unite || detectUnite(p.nom),
-                stockQuantity: histEntry ? histEntry.qty_start : fallbackQty,
-                soldQuantity: histEntry ? histEntry.qty_out : 0,
-                remainingQuantity: histEntry ? histEntry.qty_end : fallbackQty
-              };
-            });
-          setHistoryStock(mappedHistory);
+          if (dashRes.ok) {
+            const data = await dashRes.json();
+            const mappedProducts = (data.products || [])
+              .map((p: any) => ({
+                id: p.id.toString(),
+                name: p.nom,
+                quantity: p.quantite,
+                price: p.cout_unitaire,
+                cogs: (p.quantite || 0) * (p.cout_unitaire || 0),
+                threshold: p.seuil,
+                categorie: p.categorie,
+                unite: p.unite || detectUnite(p.nom),
+                type: p.type || (p.categorie === 'Main Product' ? 'PRODUCT' : 'ING'),
+                image_url: p.image_url,
+                recipe: p.recipe || {}
+              } as any))
+              .sort((a: any, b: any) => {
+                const typeOrder = { 'PRODUCT': 1, 'PREP': 2, 'ING': 3 };
+                const tA = typeOrder[a.type as keyof typeof typeOrder] || 99;
+                const tB = typeOrder[b.type as keyof typeof typeOrder] || 99;
+                if (tA !== tB) return tA - tB;
+                return a.name.localeCompare(b.name);
+              });
+            setProducts(mappedProducts);
+            checkAndNotifyLowStock(mappedProducts);
+
+            if (histRes.ok) {
+              const histData = await histRes.json();
+              const entries = histData.entries || [];
+              const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
+              const mappedHistory = (data.products || [])
+                .filter((p: any) => p.categorie === 'Ingredient' || p.type === 'ING' || p.type === 'PREP')
+                .map((p: any) => {
+                  const histEntry = entries.find((s: any) => s.product_id === p.id);
+                  const fallbackQty = isToday ? (p.quantite || 0) : 0;
+                  return {
+                    id: histEntry ? histEntry.id : null,
+                    productId: p.nom,
+                    isMain: p.categorie !== "Ingredient",
+                    unit: p.unite || detectUnite(p.nom),
+                    stockQuantity: histEntry ? histEntry.qty_start : fallbackQty,
+                    soldQuantity: histEntry ? histEntry.qty_out : 0,
+                    remainingQuantity: histEntry ? histEntry.qty_end : fallbackQty
+                  };
+                });
+              setHistoryStock(mappedHistory);
+            }
+
+            if (veilleRes && veilleRes.ok) {
+              const veilleData = await veilleRes.json();
+              const vEntries = veilleData.entries || [];
+              const mappedVeille = (data.products || [])
+                .filter((p: any) => p.categorie === 'Ingredient' || p.type === 'ING' || p.type === 'PREP')
+                .map((p: any) => {
+                  const vEntry = vEntries.find((s: any) => s.product_id === p.id);
+                  return {
+                    id: vEntry ? vEntry.id : null,
+                    productId: p.nom,
+                    unit: p.unite || detectUnite(p.nom),
+                    stockQuantity: vEntry ? vEntry.qty_start : 0,
+                    soldQuantity: vEntry ? vEntry.qty_out : 0,
+                    remainingQuantity: vEntry ? vEntry.qty_end : 0,
+                    type: p.type || (p.categorie === 'Main Product' ? 'PRODUCT' : 'ING')
+                  };
+                })
+                .sort((a: any, b: any) => {
+                  const typeOrder = { 'PRODUCT': 1, 'PREP': 2, 'ING': 3 };
+                  const tA = typeOrder[a.type as keyof typeof typeOrder] || 99;
+                  const tB = typeOrder[b.type as keyof typeof typeOrder] || 99;
+                  if (tA !== tB) return tA - tB;
+                  return a.productId.localeCompare(b.productId);
+                });
+              setStockVeilleData(mappedVeille as any);
+            }
+
+            if (predRes && predRes.ok) {
+              const predData = await predRes.json();
+              setPredictions(predData);
+            }
+
+            loadedFromLocal = true;
+          } else if (dashRes.status === 401) {
+            localStorage.removeItem('access_token');
+            router.push('/login');
+            return;
+          }
+        } catch (localErr) {
+          console.warn('Local backend not reachable, using Supabase fallback:', localErr);
         }
+      }
 
-        // 3. Process Veille
-        if (veilleRes && veilleRes.ok) {
-          const veilleData = await veilleRes.json();
-          const vEntries = veilleData.entries || [];
-          const mappedVeille = (data.products || [])
+      // Supabase Cloud Fallback (on Vercel or when local backend is down)
+      if (!loadedFromLocal) {
+        const { data: sbProducts } = await supabase.from('products').select('*');
+        const { data: sbRecipes } = await supabase.from('recipes').select('*');
+
+        if (sbProducts && sbProducts.length > 0) {
+          const recipesMap: Record<number, Record<number, number>> = {};
+          (sbRecipes || []).forEach((r: any) => {
+            if (!recipesMap[r.product_id]) recipesMap[r.product_id] = {};
+            recipesMap[r.product_id][r.ingredient_id] = r.quantity;
+          });
+
+          const mappedProducts = sbProducts
+            .map((p: any) => ({
+              id: p.id.toString(),
+              name: p.nom,
+              quantity: p.quantite || 0,
+              price: p.cout_unitaire || 0,
+              cogs: (p.quantite || 0) * (p.cout_unitaire || 0),
+              threshold: p.seuil || 10,
+              categorie: p.categorie,
+              unite: p.unite || detectUnite(p.nom),
+              type: p.type || (p.categorie === 'Main Product' ? 'PRODUCT' : 'ING'),
+              image_url: p.image_url || '',
+              recipe: recipesMap[p.id] || {}
+            } as any))
+            .sort((a: any, b: any) => {
+              const typeOrder = { 'PRODUCT': 1, 'PREP': 2, 'ING': 3 };
+              const tA = typeOrder[a.type as keyof typeof typeOrder] || 99;
+              const tB = typeOrder[b.type as keyof typeof typeOrder] || 99;
+              if (tA !== tB) return tA - tB;
+              return a.name.localeCompare(b.name);
+            });
+
+          setProducts(mappedProducts);
+          checkAndNotifyLowStock(mappedProducts);
+
+          const mappedHistory = sbProducts
             .filter((p: any) => p.categorie === 'Ingredient' || p.type === 'ING' || p.type === 'PREP')
-            .map((p: any) => {
-              const vEntry = vEntries.find((s: any) => s.product_id === p.id);
-              return {
-                id: vEntry ? vEntry.id : null,
-                productId: p.nom,
-                unit: p.unite || detectUnite(p.nom),
-                stockQuantity: vEntry ? vEntry.qty_start : 0,
-                soldQuantity: vEntry ? vEntry.qty_out : 0,
-                remainingQuantity: vEntry ? vEntry.qty_end : 0,
-                type: p.type || (p.categorie === 'Main Product' ? 'PRODUCT' : 'ING')
-              };
-            })
+            .map((p: any) => ({
+              id: p.id,
+              productId: p.nom,
+              isMain: p.categorie !== "Ingredient",
+              unit: p.unite || detectUnite(p.nom),
+              stockQuantity: p.quantite || 0,
+              soldQuantity: 0,
+              remainingQuantity: p.quantite || 0
+            }));
+          setHistoryStock(mappedHistory);
+
+          const mappedVeille = sbProducts
+            .filter((p: any) => p.categorie === 'Ingredient' || p.type === 'ING' || p.type === 'PREP')
+            .map((p: any) => ({
+              id: p.id,
+              productId: p.nom,
+              unit: p.unite || detectUnite(p.nom),
+              stockQuantity: p.quantite || 0,
+              soldQuantity: 0,
+              remainingQuantity: p.quantite || 0,
+              type: p.type || (p.categorie === 'Main Product' ? 'PRODUCT' : 'ING')
+            }))
             .sort((a: any, b: any) => {
               const typeOrder = { 'PRODUCT': 1, 'PREP': 2, 'ING': 3 };
               const tA = typeOrder[a.type as keyof typeof typeOrder] || 99;
@@ -440,16 +530,6 @@ const StockManagement: React.FC = () => {
             });
           setStockVeilleData(mappedVeille as any);
         }
-
-        // 4. Process Predictions
-        if (predRes && predRes.ok) {
-          const predData = await predRes.json();
-          setPredictions(predData);
-        }
-
-      } else if (dashRes.status === 401) {
-        localStorage.removeItem('access_token');
-        router.push('/login');
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
@@ -476,29 +556,52 @@ const StockManagement: React.FC = () => {
     e.preventDefault();
     if (!newProduct.name) return;
 
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/add-product', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          nom: newProduct.name,
-          quantite: newProduct.quantity,
-          cout_unitaire: newProduct.price,
-          seuil: newProduct.threshold,
-          categorie: newProduct.type === 'PRODUCT' ? 'Main Product' : 'Ingredient',
-          type: newProduct.type,
-          image_url: newProduct.image_url
-        }),
-      });
+      if (isLocalhost) {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch('http://localhost:8000/add-product', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            nom: newProduct.name,
+            quantite: newProduct.quantity,
+            cout_unitaire: newProduct.price,
+            seuil: newProduct.threshold,
+            categorie: newProduct.type === 'PRODUCT' ? 'Main Product' : 'Ingredient',
+            type: newProduct.type,
+            image_url: newProduct.image_url
+          }),
+        });
 
-      if (response.ok) {
+        if (response.ok) {
+          fetchData();
+          setNewProduct({ id: '', name: '', quantity: 0, price: 0, cogs: 0, threshold: 0, type: 'ING', image_url: '' });
+          toast({ title: 'Produit ajouté', status: 'success', duration: 3000 });
+          return;
+        }
+      }
+
+      // Supabase insertion
+      const { error } = await supabase.from('products').insert([{
+        nom: newProduct.name,
+        quantite: newProduct.quantity,
+        cout_unitaire: newProduct.price,
+        seuil: newProduct.threshold,
+        categorie: newProduct.type === 'PRODUCT' ? 'Main Product' : 'Ingredient',
+        type: newProduct.type,
+        image_url: newProduct.image_url
+      }]);
+
+      if (!error) {
         fetchData();
         setNewProduct({ id: '', name: '', quantity: 0, price: 0, cogs: 0, threshold: 0, type: 'ING', image_url: '' });
         toast({ title: 'Produit ajouté', status: 'success', duration: 3000 });
+      } else {
+        toast({ title: 'Erreur: ' + error.message, status: 'error', duration: 3000 });
       }
     } catch (error) {
       console.error('Erreur lors de l\'ajout:', error);
@@ -507,16 +610,18 @@ const StockManagement: React.FC = () => {
 
   const handleDeleteProduct = async (id: string) => {
     if (!window.confirm('Supprimer ce produit ?')) return;
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/delete-product/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        setProducts(prev => prev.filter(product => product.id !== id));
-        toast({ title: 'Produit supprimé', status: 'info', duration: 3000 });
+      if (isLocalhost) {
+        const token = localStorage.getItem('access_token');
+        await fetch(`http://localhost:8000/delete-product/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => null);
       }
+      await supabase.from('products').delete().eq('id', parseInt(id));
+      setProducts(prev => prev.filter(product => product.id !== id));
+      toast({ title: 'Produit supprimé', status: 'info', duration: 3000 });
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
     }

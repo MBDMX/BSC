@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabaseClient';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { StockIngredient, EditingState } from '../types/dashboard';
@@ -68,41 +69,72 @@ export default function MatierePremiereManager({ onDataChange }: MatierePremiere
   }, []);
 
   const fetchIngredients = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/dashboard-data?include_hidden=true', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const allProducts = data.products || [];
+    let loaded = false;
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
 
-        const ingredients = allProducts
-          .filter((p: any) => p.categorie === "Ingredient" || p.type === "PREP")
-          .map((p: any) => {
-            // Always show the actual stock quantity in the main management table
-            const displayQuantity = p.quantite;
+    if (isLocalhost) {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch('http://localhost:8000/dashboard-data?include_hidden=true', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const allProducts = data.products || [];
 
-            return {
+          const ingredients = allProducts
+            .filter((p: any) => p.categorie === "Ingredient" || p.type === "PREP")
+            .map((p: any) => {
+              const displayQuantity = p.quantite;
+              return {
+                id: p.id,
+                nom: p.nom,
+                code: `${p.type || 'ING'}-${p.id}`,
+                unite: p.unite || detectUnite(p.nom),
+                quantite_stock: parseFloat(formatQuantity(displayQuantity)),
+                seuil_reapprovisionnement: p.seuil,
+                prix_achat: p.cout_unitaire,
+                fournisseur: p.fournisseur,
+                categorie: p.categorie,
+                type: p.type
+              };
+            });
+          setMatieresPremieres(ingredients);
+          loaded = true;
+        } else if (response.status === 401) {
+          localStorage.removeItem('access_token');
+          router.push('/login');
+          return;
+        }
+      } catch (error) {
+        console.warn('Local fetchIngredients error, using Supabase:', error);
+      }
+    }
+
+    if (!loaded) {
+      try {
+        const { data: allProds } = await supabase.from('products').select('*');
+        if (allProds && allProds.length > 0) {
+          const ingredients = allProds
+            .filter((p: any) => p.categorie === "Ingredient" || p.type === "PREP" || p.type === "ING")
+            .map((p: any) => ({
               id: p.id,
               nom: p.nom,
               code: `${p.type || 'ING'}-${p.id}`,
               unite: p.unite || detectUnite(p.nom),
-              quantite_stock: parseFloat(formatQuantity(displayQuantity)),
-              seuil_reapprovisionnement: p.seuil,
-              prix_achat: p.cout_unitaire,
-              fournisseur: p.fournisseur,
-              categorie: p.categorie,
-              type: p.type
-            };
-          });
-        setMatieresPremieres(ingredients);
-      } else if (response.status === 401) {
-        localStorage.removeItem('access_token');
-        router.push('/login');
+              quantite_stock: parseFloat(formatQuantity(p.quantite || 0)),
+              seuil_reapprovisionnement: p.seuil || 10,
+              prix_achat: p.cout_unitaire || 0,
+              fournisseur: p.fournisseur || '',
+              categorie: p.categorie || 'Ingredient',
+              type: p.type || 'ING',
+              created_at: new Date().toISOString()
+            }));
+          setMatieresPremieres(ingredients);
+        }
+      } catch (sbErr) {
+        console.error('Supabase fetchIngredients error:', sbErr);
       }
-    } catch (error) {
-      console.error('Erreur lors du chargement des ingrédients:', error);
     }
   };
 

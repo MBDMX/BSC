@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabaseClient';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { PDFExporter } from './PDFExporter';
@@ -125,37 +126,81 @@ export default function MenuManager() {
   }, []);
 
   const loadData = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/menu-data', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const mappedData = data.map((item: any) => ({
-          id: item.id,
-          nom: item.nom,
-          description: '',
-          prix: item.prix,
-          categorie: item.categorie,
-          ingredients: item.ingredients.map((ing: any) => ({
-            ingredient_id: 0,
-            ingredient_nom: ing.nom,
-            quantite: ing.quantite,
-            unite: detectUnite(ing.nom),
-            prix_achat: ing.prix_achat || 0
-          }))
-        }));
-        setMenuProduits(mappedData);
-        // Initialiser les quantités à 1 pour tous les produits
-        const initialQtys: { [key: number]: number } = {};
-        mappedData.forEach((p: MenuProduit) => {
-          initialQtys[p.id] = 1;
+    let loaded = false;
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+    if (isLocalhost) {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch('http://localhost:8000/menu-data', {
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-        setOrderQuantities(initialQtys);
+        if (response.ok) {
+          const data = await response.json();
+          const mappedData = data.map((item: any) => ({
+            id: item.id,
+            nom: item.nom,
+            description: '',
+            prix: item.prix,
+            categorie: item.categorie,
+            ingredients: item.ingredients.map((ing: any) => ({
+              ingredient_id: 0,
+              ingredient_nom: ing.nom,
+              quantite: ing.quantite,
+              unite: detectUnite(ing.nom),
+              prix_achat: ing.prix_achat || 0
+            }))
+          }));
+          setMenuProduits(mappedData);
+          const initialQtys: { [key: number]: number } = {};
+          mappedData.forEach((p: MenuProduit) => {
+            initialQtys[p.id] = 1;
+          });
+          setOrderQuantities(initialQtys);
+          loaded = true;
+        }
+      } catch (error) {
+        console.warn('Local menu-data error, using Supabase:', error);
       }
-    } catch (error) {
-      console.error('Erreur chargement menu:', error);
+    }
+
+    if (!loaded) {
+      try {
+        const { data: allProds } = await supabase.from('products').select('*');
+        const { data: allRecipes } = await supabase.from('recipes').select('*');
+        if (allProds && allProds.length > 0) {
+          const menuItems = allProds.filter((p: any) => p.categorie === 'Main Product' || p.type === 'PRODUCT');
+          const mappedData = menuItems.map((item: any) => {
+            const itemRecipes = (allRecipes || []).filter((r: any) => r.product_id === item.id);
+            const ingList = itemRecipes.map((r: any) => {
+              const ing = (allProds || []).find((p: any) => p.id === r.ingredient_id);
+              return {
+                ingredient_id: r.ingredient_id,
+                ingredient_nom: ing?.nom || 'Ingrédient',
+                quantite: r.quantity,
+                unite: ing?.unite || detectUnite(ing?.nom || ''),
+                prix_achat: ing?.cout_unitaire || 0
+              };
+            });
+            return {
+              id: item.id,
+              nom: item.nom,
+              description: '',
+              prix: item.cout_unitaire || 0,
+              categorie: item.categorie || 'Burgers',
+              ingredients: ingList,
+              created_at: new Date().toISOString()
+            };
+          });
+          setMenuProduits(mappedData);
+          const initialQtys: { [key: number]: number } = {};
+          mappedData.forEach((p: MenuProduit) => {
+            initialQtys[p.id] = 1;
+          });
+          setOrderQuantities(initialQtys);
+        }
+      } catch (sbErr) {
+        console.error('Supabase menu load error:', sbErr);
+      }
     }
   };
 
@@ -230,7 +275,24 @@ export default function MenuManager() {
     localStorage.setItem('menuProduits', JSON.stringify(sampleProduits));
   };
 
-  const loadIngredients = () => {
+  const loadIngredients = async () => {
+    try {
+      const { data: allProds } = await supabase.from('products').select('*');
+      if (allProds && allProds.length > 0) {
+        const ings = allProds
+          .filter((p: any) => p.categorie === 'Ingredient' || p.type === 'ING' || p.type === 'PREP')
+          .map((p: any) => ({
+            id: p.id,
+            nom: p.nom,
+            unite: p.unite || detectUnite(p.nom),
+            prix_achat: p.cout_unitaire || 0
+          }));
+        setAvailableIngredients(ings);
+        return;
+      }
+    } catch (e) {
+      console.warn('Supabase ingredients load error:', e);
+    }
     const savedMatieres = localStorage.getItem('matieresPremieres');
     if (savedMatieres) {
       try {
