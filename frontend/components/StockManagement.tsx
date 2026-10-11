@@ -118,7 +118,12 @@ interface SaleTransaction {
 // Helper to play notification sound
 const playAlertSound = () => {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioContext = new AudioContextClass();
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {});
+    }
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
@@ -133,7 +138,7 @@ const playAlertSound = () => {
     oscillator.start();
     oscillator.stop(audioContext.currentTime + 0.5);
   } catch (e) {
-    console.error("Audio alert failed", e);
+    // ignore audio autoplay policy errors
   }
 };
 
@@ -634,60 +639,71 @@ const StockManagement: React.FC = () => {
 
   const handleSaveEdit = async () => {
     if (!editingData) return;
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
     try {
-      const token = localStorage.getItem('access_token');
-
-      // Map legacy 'categorie' based on 'type' to keep backend happy if it relies on it
       const newCategory = editingData.type === 'PRODUCT' ? 'Main Product' : 'Ingredient';
 
-      const response = await fetch(`http://localhost:8000/update-product/${editingData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          nom: editingData.name,
-          quantite: editingData.quantity,
-          cout_unitaire: editingData.price,
-          seuil: editingData.threshold,
-          categorie: newCategory,
-          type: editingData.type,
-          image_url: editingData.image_url
-        }),
-      });
-
-      if (response.ok) {
-        // If quantity changed for an ingredient, update today's stock history
-        const originalProduct = products.find(p => p.id === editingData.id);
-        if (originalProduct && originalProduct.quantity !== editingData.quantity && editingData.type === 'ING') {
-          const qtyDiff = editingData.quantity - originalProduct.quantity;
-
-          // Create/update stock history entry for today
-          await fetch('http://localhost:8000/stock-daily-entry', {
-            method: 'POST',
+      if (isLocalhost) {
+        try {
+          const token = localStorage.getItem('access_token');
+          const response = await fetch(`http://localhost:8000/update-product/${editingData.id}`, {
+            method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-              product_id: parseInt(editingData.id),
-              qty_start: originalProduct.quantity,
-              qty_in: qtyDiff > 0 ? qtyDiff : 0,
-              qty_out: qtyDiff < 0 ? Math.abs(qtyDiff) : 0,
-              notes: `Modification manuelle: ${originalProduct.quantity} → ${editingData.quantity}`
-            })
+              nom: editingData.name,
+              quantite: editingData.quantity,
+              cout_unitaire: editingData.price,
+              seuil: editingData.threshold,
+              categorie: newCategory,
+              type: editingData.type,
+              image_url: editingData.image_url
+            }),
           });
+
+          if (response.ok) {
+            const originalProduct = products.find(p => p.id === editingData.id);
+            if (originalProduct && originalProduct.quantity !== editingData.quantity && editingData.type === 'ING') {
+              const qtyDiff = editingData.quantity - originalProduct.quantity;
+              await fetch('http://localhost:8000/stock-daily-entry', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  product_id: parseInt(editingData.id),
+                  qty_start: originalProduct.quantity,
+                  qty_in: qtyDiff > 0 ? qtyDiff : 0,
+                  qty_out: qtyDiff < 0 ? Math.abs(qtyDiff) : 0,
+                  notes: `Modification manuelle: ${originalProduct.quantity} → ${editingData.quantity}`
+                })
+              }).catch(() => null);
+            }
+          }
+        } catch (e) {
+          console.warn('Local update skipped:', e);
         }
-
-        setProducts(prev => prev.map(p => p.id === editingData.id ? editingData : p));
-        setEditingId(null);
-        setEditingData(null);
-        toast({ title: 'Modification enregistrée', status: 'success', duration: 3000 });
-
-        // Refresh data to show updated stock history
-        fetchData();
       }
+
+      // Update in Supabase
+      await supabase.from('products').update({
+        nom: editingData.name,
+        quantite: editingData.quantity,
+        cout_unitaire: editingData.price,
+        seuil: editingData.threshold,
+        categorie: newCategory,
+        type: editingData.type,
+        image_url: editingData.image_url
+      }).eq('id', parseInt(editingData.id));
+
+      setProducts(prev => prev.map(p => p.id === editingData.id ? editingData : p));
+      setEditingId(null);
+      setEditingData(null);
+      toast({ title: 'Modification enregistrée', status: 'success', duration: 3000 });
+      fetchData();
     } catch (error) {
       console.error('Erreur lors de la modification:', error);
     }

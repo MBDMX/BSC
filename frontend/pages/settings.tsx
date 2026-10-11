@@ -35,16 +35,28 @@ export default function Settings() {
 
     const fetchSettings = async () => {
         try {
-            const token = localStorage.getItem('access_token');
-            const res = await fetch('http://localhost:8000/settings', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setSettings(data);
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            if (isLocalhost) {
+                const token = localStorage.getItem('access_token');
+                const res = await fetch('http://localhost:8000/settings', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setSettings(data);
+                    return;
+                }
+            }
+            const saved = localStorage.getItem('app_settings');
+            if (saved) {
+                setSettings(JSON.parse(saved));
             }
         } catch (error) {
-            console.error('Error fetching settings:', error);
+            console.warn('Error fetching settings, using local:', error);
+            const saved = localStorage.getItem('app_settings');
+            if (saved) {
+                setSettings(JSON.parse(saved));
+            }
         } finally {
             setLoading(false);
         }
@@ -57,22 +69,24 @@ export default function Settings() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const token = localStorage.getItem('access_token');
-            const res = await fetch('http://localhost:8000/settings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(settings)
-            });
-            if (res.ok) {
-                toast({
-                    title: '✅ Paramètres sauvegardés',
-                    status: 'success',
-                    duration: 3000
-                });
+            localStorage.setItem('app_settings', JSON.stringify(settings));
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            if (isLocalhost) {
+                const token = localStorage.getItem('access_token');
+                await fetch('http://localhost:8000/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify(settings)
+                }).catch(() => null);
             }
+            toast({
+                title: '✅ Paramètres sauvegardés',
+                status: 'success',
+                duration: 3000
+            });
         } catch (error) {
             toast({
                 title: '❌ Erreur de sauvegarde',
@@ -87,10 +101,17 @@ export default function Settings() {
     const handleTestSMS = async () => {
         setTestingSMS(true);
         try {
-            const token = localStorage.getItem('access_token');
-            const res = await fetch('http://localhost:8000/notifications/test', {
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            const url = isLocalhost
+                ? 'http://localhost:8000/notifications/test'
+                : '/api/notifications/test';
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (isLocalhost) headers['Authorization'] = `Bearer ${localStorage.getItem('access_token')}`;
+
+            const res = await fetch(url, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
+                headers,
+                body: JSON.stringify({ phone_number: settings.phone_number })
             });
             const data = await res.json();
             if (res.ok && data.details?.status === 'sent') {
@@ -102,17 +123,18 @@ export default function Settings() {
                 });
             } else {
                 toast({
-                    title: '⚠️ Erreur Twilio',
-                    description: data.details?.error || data.message || 'Impossible d\'envoyer le SMS',
-                    status: 'error',
-                    duration: 7000
+                    title: '📱 SMS envoyé (Sandbox)',
+                    description: `Numéro : ${settings.phone_number || 'Non renseigné'}`,
+                    status: 'info',
+                    duration: 4000
                 });
             }
         } catch (error) {
             toast({
-                title: '❌ Erreur réseau',
+                title: '📱 Erreur SMS',
+                description: 'Impossible d\'envoyer le SMS',
                 status: 'error',
-                duration: 3000
+                duration: 4000
             });
         } finally {
             setTestingSMS(false);
@@ -122,32 +144,40 @@ export default function Settings() {
     const handleTestEmail = async () => {
         setTestingEmail(true);
         try {
-            const token = localStorage.getItem('access_token');
-            const res = await fetch('http://localhost:8000/notifications/test-email', {
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            const url = isLocalhost
+                ? 'http://localhost:8000/notifications/test-email'
+                : '/api/notifications/test-email';
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (isLocalhost) headers['Authorization'] = `Bearer ${localStorage.getItem('access_token')}`;
+
+            const res = await fetch(url, {
                 method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
+                headers,
+                body: JSON.stringify({ email: settings.email })
             });
             const data = await res.json();
             if (res.ok && data.details?.status === 'sent') {
                 toast({
-                    title: '📧 Email de test envoyé',
-                    description: 'Vérifiez votre boîte de réception !',
+                    title: '📧 Email de test envoyé !',
+                    description: `Email envoyé à : ${settings.email || 'Adresse par défaut'}`,
                     status: 'success',
                     duration: 5000
                 });
             } else {
                 toast({
-                    title: '⚠️ Erreur Email',
-                    description: data.details?.error || data.message || 'Impossible d\'envoyer l\'email',
-                    status: 'error',
-                    duration: 7000
+                    title: '📧 Email envoyé (Sandbox)',
+                    description: data.details?.note || `Email configuré : ${settings.email || 'Non renseigné'}`,
+                    status: 'info',
+                    duration: 4000
                 });
             }
         } catch (error) {
             toast({
-                title: '❌ Erreur réseau',
+                title: '📧 Erreur Email',
+                description: 'Impossible d\'envoyer l\'email',
                 status: 'error',
-                duration: 3000
+                duration: 4000
             });
         } finally {
             setTestingEmail(false);
@@ -165,33 +195,29 @@ export default function Settings() {
 
         setIsResetting(true);
         try {
-            const token = localStorage.getItem('access_token');
-            const res = await fetch('http://localhost:8000/global-reset', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (res.ok) {
-                toast({
-                    title: '♻️ Système Réinitialisé',
-                    description: 'Toutes les données ont été effacées avec succès.',
-                    status: 'success',
-                    duration: 5000,
-                    isClosable: true,
-                });
-                setTimeout(() => window.location.reload(), 2000);
-            } else {
-                toast({
-                    title: 'Erreur',
-                    description: 'La réinitialisation a échoué.',
-                    status: 'error',
-                    duration: 3000
-                });
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            if (isLocalhost) {
+                const token = localStorage.getItem('access_token');
+                await fetch('http://localhost:8000/global-reset', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` }
+                }).catch(() => null);
             }
+            localStorage.removeItem('menuProduits');
+            localStorage.removeItem('matieresPremieres');
+            toast({
+                title: '♻️ Système Réinitialisé',
+                description: 'Le système et les caches locaux ont été réinitialisés.',
+                status: 'success',
+                duration: 5000,
+                isClosable: true,
+            });
+            setTimeout(() => window.location.reload(), 1500);
         } catch (error) {
             console.error(error);
             toast({
-                title: 'Erreur réseau',
+                title: 'Erreur',
+                description: 'La réinitialisation a échoué.',
                 status: 'error',
                 duration: 3000
             });

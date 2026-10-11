@@ -224,58 +224,82 @@ export default function MatierePremiereManager({ onDataChange }: MatierePremiere
     }
 
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch('http://localhost:8000/add-product', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          nom: newMatiere.nom,
-          quantite: newMatiere.quantite_stock,
-          cout_unitaire: newMatiere.prix_achat,
-          seuil: newMatiere.seuil_reapprovisionnement,
-          categorie: "Ingredient",
-          fournisseur: newMatiere.fournisseur,
-          unite: newMatiere.unite || detectUnite(newMatiere.nom)
-        }),
-      });
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+      let createdId: number | null = null;
 
-      if (response.ok) {
-        const result = await response.json();
-        const p = result.product;
-        const newStockIngredient: StockIngredient = {
-          id: p.id,
-          nom: p.nom,
-          code: `ING-${p.id}`,
-          unite: p.unite || detectUnite(p.nom),
-          quantite_stock: p.quantite,
-          seuil_reapprovisionnement: p.seuil,
-          prix_achat: p.cout_unitaire,
-          fournisseur: p.fournisseur,
-          categorie: p.categorie,
-          created_at: new Date().toISOString()
-        };
+      if (isLocalhost) {
+        try {
+          const token = localStorage.getItem('access_token');
+          const response = await fetch('http://localhost:8000/add-product', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              nom: newMatiere.nom,
+              quantite: newMatiere.quantite_stock,
+              cout_unitaire: newMatiere.prix_achat,
+              seuil: newMatiere.seuil_reapprovisionnement,
+              categorie: "Ingredient",
+              fournisseur: newMatiere.fournisseur,
+              unite: newMatiere.unite || detectUnite(newMatiere.nom)
+            }),
+          });
 
-        const updatedMatieres = [...matieresPremieres, newStockIngredient];
-        setMatieresPremieres(updatedMatieres);
-
-        // Réinitialiser le formulaire
-        setNewMatiere({
-          nom: '',
-          code: '',
-          unite: '',
-          quantite_stock: 0,
-          seuil_reapprovisionnement: 0,
-          prix_achat: 0,
-          fournisseur: '',
-          date_peremption: '',
-          categorie: ''
-        });
-        setShowAddForm(false);
-        toast.success('Matière première ajoutée avec succès !');
+          if (response.ok) {
+            const result = await response.json();
+            createdId = result.product?.id;
+          }
+        } catch (e) {
+          console.warn('Local add matiere error:', e);
+        }
       }
+
+      // Supabase insert
+      const { data: inserted } = await supabase.from('products').insert([{
+        nom: newMatiere.nom,
+        quantite: newMatiere.quantite_stock,
+        cout_unitaire: newMatiere.prix_achat,
+        seuil: newMatiere.seuil_reapprovisionnement,
+        categorie: "Ingredient",
+        type: 'ING',
+        fournisseur: newMatiere.fournisseur,
+        unite: newMatiere.unite || detectUnite(newMatiere.nom)
+      }]).select().single();
+
+      const finalId = createdId || inserted?.id || Date.now();
+      const newStockIngredient: StockIngredient = {
+        id: finalId,
+        nom: newMatiere.nom,
+        code: `ING-${finalId}`,
+        unite: newMatiere.unite || detectUnite(newMatiere.nom),
+        quantite_stock: newMatiere.quantite_stock,
+        seuil_reapprovisionnement: newMatiere.seuil_reapprovisionnement,
+        prix_achat: newMatiere.prix_achat,
+        fournisseur: newMatiere.fournisseur,
+        categorie: "Ingredient",
+        created_at: new Date().toISOString()
+      };
+
+      const updatedMatieres = [...matieresPremieres, newStockIngredient];
+      setMatieresPremieres(updatedMatieres);
+      saveToLocalStorage(updatedMatieres);
+
+      // Réinitialiser le formulaire
+      setNewMatiere({
+        nom: '',
+        code: '',
+        unite: '',
+        quantite_stock: 0,
+        seuil_reapprovisionnement: 0,
+        prix_achat: 0,
+        fournisseur: '',
+        date_peremption: '',
+        categorie: ''
+      });
+      setShowAddForm(false);
+      toast.success('Matière première ajoutée avec succès !');
     } catch (error) {
       console.error('Erreur lors de l\'ajout de l\'ingrédient:', error);
       toast.error('Erreur lors de l\'ajout');
@@ -286,16 +310,26 @@ export default function MatierePremiereManager({ onDataChange }: MatierePremiere
   const deleteMatiere = async (id: number) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette matière première ?')) {
       try {
-        const token = localStorage.getItem('access_token');
-        const response = await fetch(`http://localhost:8000/delete-product/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const updatedMatieres = matieresPremieres.filter(m => m.id !== id);
-          setMatieresPremieres(updatedMatieres);
-          toast.success('Matière première supprimée !');
+        const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+        if (isLocalhost) {
+          try {
+            const token = localStorage.getItem('access_token');
+            await fetch(`http://localhost:8000/delete-product/${id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+          } catch (e) {
+            console.warn('Local delete matiere error:', e);
+          }
         }
+
+        // Supabase delete
+        await supabase.from('products').delete().eq('id', id);
+
+        const updatedMatieres = matieresPremieres.filter(m => m.id !== id);
+        setMatieresPremieres(updatedMatieres);
+        saveToLocalStorage(updatedMatieres);
+        toast.success('Matière première supprimée !');
       } catch (error) {
         console.error('Erreur lors de la suppression:', error);
       }
@@ -305,26 +339,33 @@ export default function MatierePremiereManager({ onDataChange }: MatierePremiere
   // Fonction pour mettre à jour le stock
   const updateStock = async (id: number, newStock: number) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/update-product/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ quantite: newStock })
-      });
-      if (response.ok) {
-        const updatedMatieres = matieresPremieres.map(m =>
-          m.id === id ? { ...m, quantite_stock: newStock } : m
-        );
-        setMatieresPremieres(updatedMatieres);
-        saveToLocalStorage(updatedMatieres);
-        setEditingState({});
-        toast.success('Stock mis à jour !');
-      } else {
-        toast.error('Erreur mise à jour stock');
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+      if (isLocalhost) {
+        try {
+          const token = localStorage.getItem('access_token');
+          await fetch(`http://localhost:8000/update-product/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ quantite: newStock })
+          });
+        } catch (e) {
+          console.warn('Local update stock error:', e);
+        }
       }
+
+      // Supabase update
+      await supabase.from('products').update({ quantite: newStock }).eq('id', id);
+
+      const updatedMatieres = matieresPremieres.map(m =>
+        m.id === id ? { ...m, quantite_stock: newStock } : m
+      );
+      setMatieresPremieres(updatedMatieres);
+      saveToLocalStorage(updatedMatieres);
+      setEditingState({});
+      toast.success('Stock mis à jour !');
     } catch (error) {
       console.error(error);
       toast.error('Erreur connexion');
@@ -334,29 +375,36 @@ export default function MatierePremiereManager({ onDataChange }: MatierePremiere
   // Fonction pour mettre à jour le prix
   const updatePrice = async (id: number, newPrice: number) => {
     try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(`http://localhost:8000/update-product/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ cout_unitaire: newPrice })
-      });
-      if (response.ok) {
-        const updatedMatieres = matieresPremieres.map(m =>
-          m.id === id ? { ...m, prix_achat: newPrice } : m
-        );
-        setMatieresPremieres(updatedMatieres);
-        saveToLocalStorage(updatedMatieres);
-        setEditingState({});
-        toast.success('Prix mis à jour !');
-      } else {
-        toast.error('Erreur mise à jour prix');
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+      if (isLocalhost) {
+        try {
+          const token = localStorage.getItem('access_token');
+          await fetch(`http://localhost:8000/update-product/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ cout_unitaire: newPrice })
+          });
+        } catch (e) {
+          console.warn('Local update price error:', e);
+        }
       }
+
+      // Supabase update
+      await supabase.from('products').update({ cout_unitaire: newPrice }).eq('id', id);
+
+      const updatedMatieres = matieresPremieres.map(m =>
+        m.id === id ? { ...m, prix_achat: newPrice } : m
+      );
+      setMatieresPremieres(updatedMatieres);
+      saveToLocalStorage(updatedMatieres);
+      setEditingState({});
+      toast.success('Prix mis à jour !');
     } catch (error) {
       console.error(error);
-      toast.error('Erreur connexion');
+      toast.error('Erreur mise à jour');
     }
   };
 

@@ -135,8 +135,9 @@ const StockManagerComponent = () => {
   const handleUpdateStock = async (productId: number, newQuantity: number) => {
     try {
       // Mettre à jour via l'API si disponible
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
       const token = localStorage.getItem('access_token');
-      if (token) {
+      if (token && isLocalhost) {
         try {
           const response = await fetch(`http://localhost:8000/products/${productId}`, {
             method: 'PUT',
@@ -191,8 +192,9 @@ const StockManagerComponent = () => {
       }
 
       // Ajouter le produit à l'API si disponible
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
       const token = localStorage.getItem('access_token');
-      if (token) {
+      if (token && isLocalhost) {
         try {
           const response = await fetch('http://localhost:8000/products', {
             method: 'POST',
@@ -214,41 +216,32 @@ const StockManagerComponent = () => {
       // Ajouter le produit localement pour la synchronisation
       const newProductId = Math.max(...productStocks.map(p => p.id), 0) + 1;
       const productToAdd = {
+        ...newProduct,
         id: newProductId,
-        nom: newProduct.nom,
-        quantite: newProduct.quantite,
-        quantite_seuil: newProduct.seuil,
         prix: newProduct.cout_unitaire,
-        cogs: newProduct.quantite * newProduct.cout_unitaire
+        quantite_seuil: newProduct.seuil,
+        cogs: newProduct.cout_unitaire * newProduct.quantite
       };
 
-      // Mettre à jour le localStorage
-      const savedProducts = localStorage.getItem('productStocks');
-      let productStocksData: any[] = [];
-
-      if (savedProducts) {
-        productStocksData = JSON.parse(savedProducts);
-      }
-
-      productStocksData.push(productToAdd);
-      localStorage.setItem('productStocks', JSON.stringify(productStocksData));
+      const updatedProducts = [...productStocks, productToAdd];
+      setProductStocks(updatedProducts);
+      localStorage.setItem('productStocks', JSON.stringify(updatedProducts));
 
       // Déclencher l'événement de synchronisation
-      const event = new CustomEvent('product:updated', {
+      const event = new CustomEvent('product:added', {
         detail: { product: productToAdd }
       });
       window.dispatchEvent(event);
 
       // Réinitialiser le formulaire
-      setShowAddForm(false);
       setNewProduct({
         nom: '',
         quantite: 0,
-        seuil: 0,
+        seuil: 5,
         cout_unitaire: 0,
+        unite: 'pièces',
         fournisseur: '',
-        date_peremption: '',
-        unite: 'unité'
+        date_peremption: ''
       });
 
       toast.success('Produit ajouté avec succès et synchronisé avec les autres modules');
@@ -262,8 +255,9 @@ const StockManagerComponent = () => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
       try {
         // Supprimer via l'API si disponible
+        const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
         const token = localStorage.getItem('access_token');
-        if (token) {
+        if (token && isLocalhost) {
           try {
             const response = await fetch(`http://localhost:8000/products/${productId}`, {
               method: 'DELETE',
@@ -316,8 +310,9 @@ const StockManagerComponent = () => {
   const handleUpdateAllProduct = async (updatedProduct: Product) => {
     try {
       // Mettre à jour via l'API si disponible
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
       const token = localStorage.getItem('access_token');
-      if (token) {
+      if (token && isLocalhost) {
         try {
           const response = await fetch(`http://localhost:8000/products/${updatedProduct.id}`, {
             method: 'PUT',

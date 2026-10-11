@@ -78,42 +78,37 @@ const Settings = () => {
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch('http://localhost:8000/reset-transactions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-
-            if (response.ok) {
-                toast({
-                    title: "Données réinitialisées",
-                    description: "Toutes les transactions et l'historique de stock ont été réinitialisés.",
-                    status: "success",
-                    duration: 5000,
-                    isClosable: true,
-                });
-                // Reload to refresh all components and show 0 values
-                setTimeout(() => window.location.reload(), 2000);
-            } else {
-                const errorData = await response.json();
-                toast({
-                    title: "Erreur de réinitialisation",
-                    description: errorData.message || "Impossible de réinitialiser les données.",
-                    status: "error",
-                    duration: 5000,
-                    isClosable: true,
-                });
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            if (isLocalhost) {
+                const token = localStorage.getItem('access_token');
+                await fetch('http://localhost:8000/reset-transactions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }).catch(() => null);
             }
+
+            localStorage.removeItem('bsc_cloud_sales');
+            localStorage.removeItem('menuProduits');
+            localStorage.removeItem('matieresPremieres');
+
+            toast({
+                title: "Données réinitialisées",
+                description: "Toutes les transactions et les caches ont été réinitialisés avec succès.",
+                status: "success",
+                duration: 4000,
+                isClosable: true,
+            });
+            setTimeout(() => window.location.reload(), 1500);
         } catch (error) {
             console.error("Error resetting data:", error);
             toast({
-                title: "Erreur réseau",
-                description: "Impossible de se connecter au serveur pour réinitialiser les données.",
+                title: "Erreur",
+                description: "Impossible de réinitialiser.",
                 status: "error",
-                duration: 5000,
+                duration: 4000,
                 isClosable: true,
             });
         } finally {

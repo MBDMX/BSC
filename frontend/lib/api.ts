@@ -1,6 +1,14 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const getBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    return ''; // Cloud environment without backend
+  }
+  return 'http://localhost:8000';
+};
+
+const API_URL = getBaseUrl();
 
 const getAuthToken = () => {
   if (typeof window === 'undefined') return null;

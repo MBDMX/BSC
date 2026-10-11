@@ -1,5 +1,6 @@
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import {
   Box,
   Flex,
@@ -37,15 +38,37 @@ export default function MainNavbar({ onOpenSidebar }: MainNavbarProps) {
         const token = localStorage.getItem('access_token');
         if (!token) return;
 
-        const response = await fetch('http://localhost:8000/alerts', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setAlerts(data);
+        const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+        if (isLocalhost) {
+          try {
+            const response = await fetch('http://localhost:8000/alerts', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+              const data = await response.json();
+              setAlerts(data);
+              return;
+            }
+          } catch (e) {
+            // fallback to Supabase
+          }
+        }
+
+        // Cloud Supabase fallback:
+        const { data: prods } = await supabase.from('products').select('*');
+        if (prods) {
+          const lowStock = prods
+            .filter((p: any) => (p.quantite || 0) <= (p.seuil || 10))
+            .map((p: any) => ({
+              ingredient_nom: p.nom,
+              stock_actuel: p.quantite || 0,
+              unite: p.unite || 'unité',
+              seuil_alerte: p.seuil || 10
+            }));
+          setAlerts(lowStock);
         }
       } catch (error) {
-        console.error('Erreur lors du chargement des alertes:', error);
+        console.warn('Erreur lors du chargement des alertes:', error);
       }
     };
 

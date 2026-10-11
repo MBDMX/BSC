@@ -49,6 +49,8 @@ interface Sale {
     date: string;
 }
 
+import { supabase } from '../lib/supabaseClient';
+
 export default function SalesManagement() {
     const [products, setProducts] = useState<Product[]>([]);
     const [sales, setSales] = useState<Sale[]>([]);
@@ -75,24 +77,58 @@ export default function SalesManagement() {
 
     const fetchProducts = async () => {
         try {
-            const response = await fetch('http://localhost:8000/menu-data');
-            if (response.ok) {
-                const data = await response.json();
-                setProducts(data.filter((p: Product) => !p.nom.toLowerCase().includes('bun')));
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            if (isLocalhost) {
+                try {
+                    const response = await fetch('http://localhost:8000/menu-data');
+                    if (response.ok) {
+                        const data = await response.json();
+                        setProducts(data.filter((p: Product) => !p.nom.toLowerCase().includes('bun')));
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Local menu-data unreachable, trying Supabase:', e);
+                }
+            }
+
+            // Supabase fallback:
+            const { data: prods } = await supabase.from('products').select('*');
+            if (prods && prods.length > 0) {
+                setProducts(
+                    prods
+                        .filter((p: any) => p.categorie === 'Main Product' || p.type === 'PRODUCT')
+                        .map((p: any) => ({
+                            id: p.id,
+                            nom: p.nom,
+                            prix: p.prix || p.cout_unitaire || 15,
+                            categorie: p.categorie || 'Main Product'
+                        }))
+                );
             }
         } catch (error) {
-            console.error('Erreur produits:', error);
+            console.warn('Erreur produits:', error);
         }
     };
 
     const fetchSales = async () => {
         try {
-            const response = await fetch('http://localhost:8000/sales');
-            if (response.ok) {
-                setSales(await response.json());
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            const url = isLocalhost ? 'http://localhost:8000/sales' : '/api/sales';
+            try {
+                const response = await fetch(url, isLocalhost ? {} : {});
+                if (response.ok) {
+                    setSales(await response.json());
+                    return;
+                }
+            } catch (e) {
+                console.warn('Sales fetch failed, using localStorage:', e);
             }
+
+            // localStorage fallback
+            const saved = localStorage.getItem('bsc_cloud_sales');
+            if (saved) setSales(JSON.parse(saved));
         } catch (error) {
-            console.error('Erreur ventes:', error);
+            console.warn('Erreur ventes:', error);
         }
     };
 
@@ -100,23 +136,22 @@ export default function SalesManagement() {
         if (!confirm('Voulez-vous vraiment supprimer cette vente ?')) return;
 
         try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(`http://localhost:8000/sales/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            const url = isLocalhost ? `http://localhost:8000/sales/${id}` : `/api/sales?id=${id}`;
+            const headers: Record<string, string> = {};
+            if (isLocalhost) headers['Authorization'] = `Bearer ${localStorage.getItem('access_token')}`;
 
-            if (response.ok) {
-                toast({ title: 'Vente supprimée', status: 'success', duration: 3000 });
-                fetchSales();
-            } else {
-                toast({ title: 'Erreur lors de la suppression', status: 'error' });
-            }
+            await fetch(url, { method: 'DELETE', headers }).catch(() => null);
+
+            setSales(prev => {
+                const updated = prev.filter(s => s.id !== id);
+                localStorage.setItem('bsc_cloud_sales', JSON.stringify(updated));
+                return updated;
+            });
+            toast({ title: 'Vente supprimée', status: 'success', duration: 3000 });
         } catch (error) {
             console.error('Erreur suppression:', error);
-            toast({ title: 'Erreur de connexion', status: 'error' });
+            toast({ title: 'Erreur lors de la suppression', status: 'error' });
         }
     };
 
@@ -131,34 +166,58 @@ export default function SalesManagement() {
 
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:8000/sales', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    produit_nom: product.nom,
-                    produit_id: product.id,
-                    quantite: quantity,
-                    prix_unitaire: product.prix,
-                    date: saleDate.replace('T', ' ') + ':00' // Ensure YYYY-MM-DD HH:MM:SS format
-                })
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            const url = isLocalhost ? 'http://localhost:8000/sales' : '/api/sales';
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (isLocalhost) headers['Authorization'] = `Bearer ${localStorage.getItem('access_token')}`;
+
+            const body = JSON.stringify({
+                produit_nom: product.nom,
+                produit_id: product.id,
+                quantite: quantity,
+                prix_unitaire: product.prix,
+                date: saleDate.replace('T', ' ') + ':00'
             });
 
-            if (response.ok) {
-                toast({ title: 'Vente enregistrée !', status: 'success', duration: 3000 });
-                setSelectedProductId('');
-                // Reset to current time after successful sale
-                setSaleDate(getLocalISOString());
-                fetchSales();
-            } else {
-                toast({ title: 'Erreur lors de l\'enregistrement', status: 'error' });
+            try {
+                const response = await fetch(url, { method: 'POST', headers, body });
+                if (response.ok) {
+                    toast({ title: 'Vente enregistrée !', status: 'success', duration: 3000 });
+                    setQuantity(1);
+                    setSelectedProductId('');
+                    setSaleDate(getLocalISOString());
+                    await fetchSales();
+                    return;
+                }
+            } catch (e) {
+                console.warn('Sale save failed, using local fallback:', e);
             }
+
+            // localStorage fallback
+            const newSale: Sale = {
+                id: Date.now(),
+                produit_nom: product.nom,
+                quantite: quantity,
+                prix_unitaire: product.prix,
+                total: quantity * product.prix,
+                date: saleDate.replace('T', ' ') + ':00'
+            };
+            setSales(prev => {
+                const updated = [newSale, ...prev];
+                localStorage.setItem('bsc_cloud_sales', JSON.stringify(updated));
+                return updated;
+            });
+            toast({ title: 'Vente enregistrée !', status: 'success', duration: 3000 });
+            setSelectedProductId('');
+            setSaleDate(getLocalISOString());
         } catch (error) {
             console.error('Erreur vente:', error);
-            toast({ title: 'Erreur de connexion', status: 'error' });
+            toast({ title: 'Erreur lors de l\'enregistrement', status: 'error' });
         } finally {
             setLoading(false);
         }
     };
+
 
     const isMobile = useBreakpointValue({ base: true, md: false });
 

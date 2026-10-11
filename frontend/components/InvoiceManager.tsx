@@ -57,6 +57,8 @@ interface Invoice {
     date_upload: string;
 }
 
+import { supabase } from '../lib/supabaseClient';
+
 export default function InvoiceManager() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [allProducts, setAllProducts] = useState<any[]>([]);
@@ -70,7 +72,8 @@ export default function InvoiceManager() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const toast = useToast();
 
-    const API_URL = 'http://localhost:8000';
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+    const API_URL = isLocalhost ? 'http://localhost:8000' : '';
 
     useEffect(() => {
         const initData = async () => {
@@ -89,30 +92,57 @@ export default function InvoiceManager() {
 
     const fetchAllProducts = async () => {
         try {
-            const res = await fetch(`${API_URL}/dashboard-data?include_hidden=true`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setAllProducts(data.products || []);
+            if (isLocalhost) {
+                try {
+                    const res = await fetch(`${API_URL}/dashboard-data?include_hidden=true`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setAllProducts(data.products || []);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn(e);
+                }
+            }
+
+            // Supabase fallback:
+            const { data: prods } = await supabase.from('products').select('*');
+            if (prods) {
+                setAllProducts(prods);
             }
         } catch (error) {
-            console.error('Error fetching products:', error);
+            console.warn('Error fetching products:', error);
         }
     };
 
     const fetchInvoices = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/invoices`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setInvoices(data);
+            if (isLocalhost) {
+                try {
+                    const res = await fetch(`${API_URL}/invoices`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setInvoices(data);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn(e);
+                }
+            }
+
+            const saved = localStorage.getItem('bsc_cloud_invoices');
+            if (saved) {
+                setInvoices(JSON.parse(saved));
+            } else {
+                setInvoices([]);
             }
         } catch (error) {
-            console.error('Error fetching invoices:', error);
+            console.warn('Error fetching invoices:', error);
         } finally {
             setLoading(false);
         }

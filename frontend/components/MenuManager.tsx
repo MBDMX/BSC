@@ -392,32 +392,46 @@ export default function MenuManager() {
     }
 
     try {
-      const token = localStorage.getItem('access_token');
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
       const payload = {
         nom: newProduit.nom.trim(),
         quantite: 0, // Default stock
-        cout_unitaire: newProduit.prix, // Using input price as unit cost/price
+        cout_unitaire: newProduit.prix,
         categorie: newProduit.categorie,
-        seuil: 10, // Default threshold
-        fournisseur: "Inconnu", // Default
+        seuil: 10,
+        fournisseur: "Inconnu",
         ingredients: newProduit.ingredients.map(i => ({
           id: i.ingredient_id,
           quantity: i.quantite
         }))
       };
 
-      const response = await fetch('http://localhost:8000/add-product', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la création du produit');
+      if (isLocalhost) {
+        try {
+          const token = localStorage.getItem('access_token');
+          await fetch('http://localhost:8000/add-product', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+          });
+        } catch (e) {
+          console.warn('Local API add error:', e);
+        }
       }
+
+      // Supabase add
+      await supabase.from('products').insert([{
+        nom: newProduit.nom.trim(),
+        quantite: 0,
+        cout_unitaire: newProduit.prix,
+        categorie: newProduit.categorie,
+        type: 'PRODUCT',
+        seuil: 10,
+        recipe: newProduit.ingredients.map(i => ({ id: i.ingredient_id, quantity: i.quantite }))
+      }]);
 
       await loadData(); // Reload data from server
 
@@ -442,17 +456,23 @@ export default function MenuManager() {
   const deleteProduit = async (id: number) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
       try {
-        const token = localStorage.getItem('access_token');
-        const response = await fetch(`http://localhost:8000/delete-product/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
+        const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+        if (isLocalhost) {
+          try {
+            const token = localStorage.getItem('access_token');
+            await fetch(`http://localhost:8000/delete-product/${id}`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+          } catch (e) {
+            console.warn('Local API delete error:', e);
           }
-        });
-
-        if (!response.ok) {
-          throw new Error('Erreur lors de la suppression');
         }
+
+        // Supabase delete
+        await supabase.from('products').delete().eq('id', id);
 
         await loadData(); // Reload data
         toast.success('Produit supprimé!');
@@ -536,10 +556,10 @@ export default function MenuManager() {
     if (!editingProduit) return;
 
     try {
-      const token = localStorage.getItem('access_token');
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
       const payload = {
         nom: editingProduit.nom,
-        quantite: 0, // We don't track stock here, confusing but required by Model
+        quantite: 0,
         cout_unitaire: editingProduit.prix,
         categorie: editingProduit.categorie,
         ingredients: editingProduit.ingredients.map(i => ({
@@ -548,49 +568,29 @@ export default function MenuManager() {
         }))
       };
 
-      // Need to fetch current product details first to preserve other fields?
-      // For now, sending minimal fields might overwrite others with defaults if backend doesn't handle partials well.
-      // My backend update_product uses product_data.dict(), so it expects full object?
-      // Wait, update_product_route takes Product model.
-      // I should ideally provide all fields. But I don't have them all (e.g. real stock).
-      // Actually, backend update_product does `product_data.dict()`.
-      // If I send 0 stock, it will reset stock to 0! This is dangerous.
-      // I need to fetch the product first or modify backend to allow partial updates.
-      // But `update_product_route` uses `Product` Pydantic model which requires all fields.
-      // Solution: Fetch product first, merge, then update.
-
-      // Fetch current
-      const resCurrent = await fetch(`http://localhost:8000/menu-data`); // This returns simplified menu data.
-      // I need raw product data. /dashboard-data or similar.
-      // Better: DB update is risky if I overwrite stock.
-      // Backend refactor: `update_product_route` logic?
-      // Using `update_product` (the one I deleted) would have been better for partials!
-      // But I can fix this by fetching `menuProduits` (which I have) but `menuProduits` doesn't have stock.
-      // Okay, safeguard: user `quantite: editingProduit.quantite` (if I had it)
-      // I don't have stock in MenuProduit.
-
-      // QUICK FIX: I will send `quantite: 999` and backend will overwrite?
-      // Yes. This is bad.
-      // I should update backend to allow partial updates or handle `product_data` better.
-      // I'll stick to `addProduit` first. Editing might reset stock.
-      // User didn't explicitly complain about editing resetting stock, but they want accurate stock.
-      // Product stock is usually for Ingredients. Main Products have 0 stock (computed).
-      // So setting quantite: 0 for Main Product is actually CORRECT!
-      // Main products don't have stock themselves. Ingredients do.
-      // So this is safe for Main Products.
-
-      const response = await fetch(`http://localhost:8000/update-product/${editingProduit.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la modification');
+      if (isLocalhost) {
+        try {
+          const token = localStorage.getItem('access_token');
+          await fetch(`http://localhost:8000/update-product/${editingProduit.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+          });
+        } catch (e) {
+          console.warn('Local update error:', e);
+        }
       }
+
+      // Supabase update
+      await supabase.from('products').update({
+        nom: editingProduit.nom,
+        cout_unitaire: editingProduit.prix,
+        categorie: editingProduit.categorie,
+        recipe: editingProduit.ingredients.map(i => ({ id: i.ingredient_id, quantity: i.quantite }))
+      }).eq('id', editingProduit.id);
 
       await loadData();
       setEditingProduit(null);

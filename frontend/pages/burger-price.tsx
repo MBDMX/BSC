@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
+import StockSynchronizer from "../components/StockSynchronizer";
 import ProtectedRoute from "../components/ProtectedRoute";
-import StockSynchronizer from '../components/StockSynchronizer';
+import { supabase } from "../lib/supabaseClient";
 
 type StockItem = {
   id: number;
@@ -30,34 +31,49 @@ export default function BurgerPrice() {
 
   // 1. Récupérer les produits du stock réel
   useEffect(() => {
-    fetch("http://localhost:8000/dashboard-data", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        const produits = Array.isArray(data.products) ? data.products : [];
-        setStockItems(produits.map((p: any) => ({
-          id: p.id,
-          name: p.nom,
-          unitCost: p.cout_unitaire,
-        })));
-        if (produits.length > 0) {
-          setIngredients([{ item_id: produits[0].id, quantity: 1 }]);
+    const loadProducts = async () => {
+      const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+      if (isLocalhost) {
+        try {
+          const res = await fetch("http://localhost:8000/dashboard-data", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const produits = Array.isArray(data.products) ? data.products : [];
+            setStockItems(produits.map((p: any) => ({
+              id: p.id,
+              name: p.nom,
+              unitCost: p.cout_unitaire,
+            })));
+            if (produits.length > 0) {
+              setIngredients([{ item_id: produits[0].id, quantity: 1 }]);
+            }
+            return;
+          }
+        } catch (e) {
+          console.warn('Local products fetch failed, using Supabase:', e);
         }
-      })
-      .catch((error) => {
-        console.error("Erreur lors du chargement des produits:", error);
-      });
-  }, []);
+      }
 
-  // 2. Permettre d'ajouter/supprimer/modifier quantité
-  // 3. Calculer le prix détaillé
-  // 4. Afficher le détail du calcul et les contrôles pour marge, remise, TVA
-  // Supprimer le useEffect qui calcule automatiquement
-  // useEffect(() => {
-  //   if (ingredients.length === 0 || stockItems.length === 0) return;
-  //   calculate();
-  // }, [ingredients, tva, remise, marge]);
+      // Supabase fallback:
+      try {
+        const { data: prods } = await supabase.from('products').select('*');
+        if (prods && prods.length > 0) {
+          setStockItems(prods.map((p: any) => ({
+            id: p.id,
+            name: p.nom,
+            unitCost: p.cout_unitaire || 0,
+          })));
+          setIngredients([{ item_id: prods[0].id, quantity: 1 }]);
+        }
+      } catch (err) {
+        console.warn('Supabase fetch failed:', err);
+      }
+    };
+
+    loadProducts();
+  }, []);
 
   const addIngredient = () => {
     if (stockItems.length === 0) return;
@@ -86,20 +102,40 @@ export default function BurgerPrice() {
   const margeDecimal = marge / 100;
 
   const calculate = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/price-estimate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ ingredients, tva: tvaDecimal, remise: remiseDecimal, marge: margeDecimal }),
-      });
-      const data = await res.json();
-      setResult(data);
-    } catch (error) {
-      console.error("Erreur de calcul", error);
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+    if (isLocalhost) {
+      try {
+        const res = await fetch("http://localhost:8000/price-estimate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ ingredients, tva: tvaDecimal, remise: remiseDecimal, marge: margeDecimal }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setResult(data);
+          return;
+        }
+      } catch (error) {
+        console.warn("Backend estimate failed, computing locally:", error);
+      }
     }
+
+    // Client-side compute:
+    const totalCost = ingredients.reduce((sum, ing) => {
+      const item = stockItems.find(s => s.id === ing.item_id);
+      return sum + (item?.unitCost || 0) * ing.quantity;
+    }, 0);
+    const withMarge = totalCost * (1 + margeDecimal);
+    const withRemise = withMarge * (1 - remiseDecimal);
+    const withTVA = withRemise * (1 + tvaDecimal);
+    setResult({
+      cost_ht: totalCost,
+      price_ttc: withTVA,
+      marge_realisee: withRemise - totalCost
+    });
   };
 
   return (
