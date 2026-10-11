@@ -1,0 +1,8 @@
+# Ignore backend for Vercel Next.js deployment
+backend/
+*.py
+*.db
+*.sqlite3
+populate_supabase.py
+supabase_setup.sql
+demarrer.bat
