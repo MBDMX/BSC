@@ -22,7 +22,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { data, error } = await supabase.from('sales').insert([{
       produit_nom,
-      produit_id: produit_id || null,
       quantite,
       prix_unitaire,
       total,
