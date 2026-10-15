@@ -148,22 +148,21 @@ export default function ChargesManagement() {
             }
         }
 
-        // Cloud Supabase fallback — no demo data:
+        // Cloud: fetch via /api/expenses for consistency
         try {
-            const { data: supExpenses } = await supabase
-                .from('expenses')
-                .select('*')
-                .eq('year', year)
-                .eq('month', month);
-            if (supExpenses && supExpenses.length > 0) {
-                setExpenses(supExpenses);
+            const [expRes, salesRes] = await Promise.all([
+                fetch(`/api/expenses?year=${year}&month=${month}`),
+                supabase.from('sales').select('total').eq('year', year).eq('month', month)
+            ]);
+
+            if (expRes.ok) {
+                const expData = await expRes.json();
+                setExpenses(Array.isArray(expData) ? expData : []);
             } else {
                 setExpenses([]);
             }
 
-            const { data: supSales } = await supabase
-                .from('sales')
-                .select('total');
+            const supSales = salesRes.data;
             const totalRev = supSales ? supSales.reduce((s: number, r: any) => s + (r.total || 0), 0) : 0;
             setMonthlyRevenue(totalRev);
         } catch (e) {
@@ -214,10 +213,9 @@ export default function ChargesManagement() {
                 }
             }
 
-            // Cloud persistence:
+            // Cloud persistence via API:
             const prod = products.find(p => p.id === parseInt(newExpense.product_id));
-            const expItem: Expense = {
-                id: Date.now(),
+            const expBody = {
                 nom: `Achat: ${prod?.nom || 'Ingrédient'} x${newExpense.quantity}`,
                 type: 'INGREDIENT_PURCHASE',
                 montant: parseRounded(newExpense.quantity) * parseRounded(newExpense.prix_achat),
@@ -226,28 +224,29 @@ export default function ChargesManagement() {
                 quantite: parseRounded(newExpense.quantity),
                 unite: prod?.unite || 'kg'
             };
-            const updated = [expItem, ...expenses];
-            setExpenses(updated);
-            localStorage.setItem('bsc_cloud_expenses', JSON.stringify(updated));
+            await fetch('/api/expenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(expBody)
+            });
 
             // Sync stock increment to Supabase in cloud
             const prodId = parseInt(newExpense.product_id);
             const addedQty = parseRounded(newExpense.quantity);
-            (async () => {
-                try {
-                    const { data } = await supabase.from('products').select('quantite').eq('id', prodId).single();
-                    if (data) {
-                        await supabase.from('products').update({
-                            quantite: (data.quantite || 0) + addedQty
-                        }).eq('id', prodId);
-                    }
-                } catch (e) {
-                    console.warn('Supabase stock update error:', e);
+            try {
+                const { data } = await supabase.from('products').select('quantite').eq('id', prodId).single();
+                if (data) {
+                    await supabase.from('products').update({
+                        quantite: (data.quantite || 0) + addedQty
+                    }).eq('id', prodId);
                 }
-            })();
+            } catch (e) {
+                console.warn('Supabase stock update error:', e);
+            }
 
             toast.success('Achat d\'ingrédient enregistré !');
             resetForm();
+            fetchData();
             return;
         }
 
@@ -282,20 +281,21 @@ export default function ChargesManagement() {
             }
         }
 
-        // Cloud persistence:
-        const expItem: Expense = {
-            id: Date.now(),
-            nom: newExpense.nom,
-            type: newExpense.type,
-            montant: parseRounded(newExpense.montant),
-            date: newExpense.date,
-            recurrence: newExpense.recurrence
-        };
-        const updated = [expItem, ...expenses];
-        setExpenses(updated);
-        localStorage.setItem('bsc_cloud_expenses', JSON.stringify(updated));
+        // Cloud persistence via API:
+        await fetch('/api/expenses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nom: newExpense.nom,
+                type: newExpense.type,
+                montant: parseRounded(newExpense.montant),
+                date: newExpense.date,
+                recurrence: newExpense.recurrence
+            })
+        });
         toast.success('Charge ajoutée');
         resetForm();
+        fetchData();
     };
 
     const handleDelete = async (id: number) => {
@@ -311,12 +311,15 @@ export default function ChargesManagement() {
             } catch (err) {
                 console.warn(err);
             }
+        } else {
+            try {
+                await fetch(`/api/expenses?id=${id}`, { method: 'DELETE' });
+            } catch (err) {
+                console.warn('Cloud delete error:', err);
+            }
         }
-
-        const updated = expenses.filter(e => e.id !== id);
-        setExpenses(updated);
-        localStorage.setItem('bsc_cloud_expenses', JSON.stringify(updated));
         toast.success('Supprimé');
+        fetchData();
     };
 
     const handleProductChange = (productId: string) => {

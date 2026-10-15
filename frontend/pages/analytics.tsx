@@ -58,36 +58,85 @@ const Analytics: React.FC = () => {
         }
       }
 
-      // Cloud Supabase fallback:
-      const { data: prods } = await supabase.from('products').select('*');
-      if (prods && prods.length > 0) {
-        const top = prods
-          .filter((p: any) => p.categorie === 'Main Product' || p.type === 'PRODUCT')
-          .slice(0, 5)
-          .map((p: any, idx: number) => ({
-            id: p.id,
-            nom: p.nom,
-            chiffre_affaires: (p.cout_unitaire || 15) * (20 - idx * 3),
-            quantite_vendue: 20 - idx * 3,
-            peak_time: '20h-22h'
-          }));
-        setTopProducts(top);
-        setKpis({ orders: 35, charges: 450, profit: 1280, margin: 74 });
+      // Cloud Supabase — real data only:
+      const monthStr = month.toString().padStart(2, '0');
+      const monthStart = `${year}-${monthStr}-01`;
+      const monthEnd = `${year}-${monthStr}-31`;
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(today.getDate() - 29);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
 
-        // Generate synthetic past 14 days curve based on products
-        const days = Array.from({ length: 14 }).map((_, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() - (13 - i));
-          return {
-            date: d.toISOString().split('T')[0],
-            montant: 180 + Math.floor(Math.sin(i) * 50) + (i * 12),
-            formattedDate: d.toLocaleDateString()
-          };
-        });
-        setSalesHistory(days);
-      }
+      // Fetch real sales for current month
+      const { data: monthlySales } = await supabase
+        .from('sales')
+        .select('*')
+        .gte('date', monthStart)
+        .lte('date', monthEnd);
+
+      // Fetch real expenses for current month
+      const { data: monthlyExp } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('year', year)
+        .eq('month', month);
+
+      // Fetch last 30 days sales for chart
+      const { data: recentSales } = await supabase
+        .from('sales')
+        .select('*')
+        .gte('date', thirtyDaysAgoStr);
+
+      const totalRevenue = (monthlySales || []).reduce((s: number, r: any) => s + (r.total || 0), 0);
+      const totalCharges = (monthlyExp || []).reduce((s: number, e: any) => s + (e.montant || 0), 0);
+      const totalProfit = totalRevenue - totalCharges;
+      const margin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+      setKpis({
+        orders: (monthlySales || []).length,
+        charges: totalCharges,
+        profit: totalProfit,
+        margin
+      });
+
+      // Build real 30-day sales curve
+      const dayMap: Record<string, number> = {};
+      (recentSales || []).forEach((s: any) => {
+        const day = (s.date || '').split('T')[0].split(' ')[0];
+        if (day) dayMap[day] = (dayMap[day] || 0) + (s.total || 0);
+      });
+      const days = Array.from({ length: 30 }).map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (29 - i));
+        const dateStr = d.toISOString().split('T')[0];
+        return {
+          date: dateStr,
+          montant: dayMap[dateStr] || 0,
+          formattedDate: d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+        };
+      });
+      setSalesHistory(days);
+
+      // Top products from real sales
+      const prodMap: Record<string, { nom: string; total: number; qty: number }> = {};
+      (monthlySales || []).forEach((s: any) => {
+        if (!prodMap[s.produit_nom]) prodMap[s.produit_nom] = { nom: s.produit_nom, total: 0, qty: 0 };
+        prodMap[s.produit_nom].total += s.total || 0;
+        prodMap[s.produit_nom].qty += s.quantite || 0;
+      });
+      const top = Object.values(prodMap)
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5)
+        .map((p) => ({
+          nom: p.nom,
+          chiffre_affaires: p.total,
+          quantite_vendue: p.qty,
+          peak_time: '—'
+        }));
+      setTopProducts(top);
+
     } catch (error) {
       console.warn("Analytics load notice:", error);
+      setKpis({ orders: 0, charges: 0, profit: 0, margin: 0 });
     } finally {
       setLoading(false);
     }

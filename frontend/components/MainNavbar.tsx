@@ -73,8 +73,18 @@ export default function MainNavbar({ onOpenSidebar }: MainNavbarProps) {
     };
 
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 60000); // Check every minute
-    return () => clearInterval(interval);
+
+    // Supabase Realtime: re‑fetch alerts whenever any product row changes
+    const channel = supabase
+      .channel('products-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchAlerts();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleNavigation = (path: string) => {

@@ -179,40 +179,19 @@ export default function SalesManagement() {
                 date: saleDate.replace('T', ' ') + ':00'
             });
 
-            try {
-                const response = await fetch(url, { method: 'POST', headers, body });
-                if (response.ok) {
-                    toast({ title: 'Vente enregistrée !', status: 'success', duration: 3000 });
-                    setQuantity(1);
-                    setSelectedProductId('');
-                    setSaleDate(getLocalISOString());
-                    await fetchSales();
-                    return;
-                }
-            } catch (e) {
-                console.warn('Sale save failed, using local fallback:', e);
+            const response = await fetch(url, { method: 'POST', headers, body });
+            if (response.ok) {
+                toast({ title: 'Vente enregistrée !', status: 'success', duration: 3000 });
+                setQuantity(1);
+                setSelectedProductId('');
+                setSaleDate(getLocalISOString());
+                await fetchSales();
+            } else {
+                const errData = await response.json().catch(() => ({}));
+                toast({ title: 'Erreur lors de l\'enregistrement', description: errData.error || 'Veuillez réessayer', status: 'error', duration: 4000 });
             }
-
-            // localStorage fallback
-            const newSale: Sale = {
-                id: Date.now(),
-                produit_nom: product.nom,
-                quantite: quantity,
-                prix_unitaire: product.prix,
-                total: quantity * product.prix,
-                date: saleDate.replace('T', ' ') + ':00'
-            };
-            setSales(prev => {
-                const updated = [newSale, ...prev];
-                localStorage.setItem('bsc_cloud_sales', JSON.stringify(updated));
-                return updated;
-            });
-            toast({ title: 'Vente enregistrée !', status: 'success', duration: 3000 });
-            setSelectedProductId('');
-            setSaleDate(getLocalISOString());
-        } catch (error) {
-            console.error('Erreur vente:', error);
-            toast({ title: 'Erreur lors de l\'enregistrement', status: 'error' });
+        } catch (e) {
+            toast({ title: 'Erreur réseau', description: 'Impossible de contacter le serveur.', status: 'error', duration: 4000 });
         } finally {
             setLoading(false);
         }

@@ -31,25 +31,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (error) return res.status(500).json({ error: error.message });
 
-    // Deduct stock from Supabase based on recipe (if any)
+    // Deduct stock from Supabase based on recipes table
     if (produit_id) {
-      const { data: product } = await supabase
-        .from('products')
-        .select('recipe')
-        .eq('id', produit_id)
-        .single();
+      const { data: recipes } = await supabase
+        .from('recipes')
+        .select('ingredient_id, quantity')
+        .eq('product_id', produit_id);
 
-      if (product?.recipe && Array.isArray(product.recipe)) {
-        for (const item of product.recipe) {
+      if (recipes && recipes.length > 0) {
+        for (const item of recipes) {
           const { data: ingredient } = await supabase
             .from('products')
             .select('quantite')
-            .eq('id', item.id)
+            .eq('id', item.ingredient_id)
             .single();
 
           if (ingredient) {
             const newQty = Math.max(0, (ingredient.quantite || 0) - (item.quantity * quantite));
-            await supabase.from('products').update({ quantite: newQty }).eq('id', item.id);
+            await supabase.from('products').update({ quantite: newQty }).eq('id', item.ingredient_id);
           }
         }
       }
