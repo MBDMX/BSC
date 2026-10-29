@@ -254,21 +254,22 @@ export default function MatierePremiereManager({ onDataChange }: MatierePremiere
         } catch (e) {
           console.warn('Local add matiere error:', e);
         }
+      } else {
+        // Cloud: Supabase insert only
+        const { data: inserted } = await supabase.from('products').insert([{
+          nom: newMatiere.nom,
+          quantite: newMatiere.quantite_stock,
+          cout_unitaire: newMatiere.prix_achat,
+          seuil: newMatiere.seuil_reapprovisionnement,
+          categorie: "Ingredient",
+          type: 'ING',
+          fournisseur: newMatiere.fournisseur,
+          unite: newMatiere.unite || detectUnite(newMatiere.nom)
+        }]).select().single();
+        createdId = inserted?.id || null;
       }
 
-      // Supabase insert
-      const { data: inserted } = await supabase.from('products').insert([{
-        nom: newMatiere.nom,
-        quantite: newMatiere.quantite_stock,
-        cout_unitaire: newMatiere.prix_achat,
-        seuil: newMatiere.seuil_reapprovisionnement,
-        categorie: "Ingredient",
-        type: 'ING',
-        fournisseur: newMatiere.fournisseur,
-        unite: newMatiere.unite || detectUnite(newMatiere.nom)
-      }]).select().single();
-
-      const finalId = createdId || inserted?.id || Date.now();
+      const finalId = createdId || Date.now();
       const newStockIngredient: StockIngredient = {
         id: finalId,
         nom: newMatiere.nom,

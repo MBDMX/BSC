@@ -586,27 +586,28 @@ const StockManagement: React.FC = () => {
           fetchData();
           setNewProduct({ id: '', name: '', quantity: 0, price: 0, cogs: 0, threshold: 0, type: 'ING', image_url: '' });
           toast({ title: 'Produit ajouté', status: 'success', duration: 3000 });
-          return;
+        } else {
+          toast({ title: 'Erreur serveur local', status: 'error', duration: 3000 });
         }
-      }
-
-      // Supabase insertion
-      const { error } = await supabase.from('products').insert([{
-        nom: newProduct.name,
-        quantite: newProduct.quantity,
-        cout_unitaire: newProduct.price,
-        seuil: newProduct.threshold,
-        categorie: newProduct.type === 'PRODUCT' ? 'Main Product' : 'Ingredient',
-        type: newProduct.type,
-        image_url: newProduct.image_url
-      }]);
-
-      if (!error) {
-        fetchData();
-        setNewProduct({ id: '', name: '', quantity: 0, price: 0, cogs: 0, threshold: 0, type: 'ING', image_url: '' });
-        toast({ title: 'Produit ajouté', status: 'success', duration: 3000 });
       } else {
-        toast({ title: 'Erreur: ' + error.message, status: 'error', duration: 3000 });
+        // Cloud: Supabase insertion only
+        const { error } = await supabase.from('products').insert([{
+          nom: newProduct.name,
+          quantite: newProduct.quantity,
+          cout_unitaire: newProduct.price,
+          seuil: newProduct.threshold,
+          categorie: newProduct.type === 'PRODUCT' ? 'Main Product' : 'Ingredient',
+          type: newProduct.type,
+          image_url: newProduct.image_url
+        }]);
+
+        if (!error) {
+          fetchData();
+          setNewProduct({ id: '', name: '', quantity: 0, price: 0, cogs: 0, threshold: 0, type: 'ING', image_url: '' });
+          toast({ title: 'Produit ajouté', status: 'success', duration: 3000 });
+        } else {
+          toast({ title: 'Erreur: ' + error.message, status: 'error', duration: 3000 });
+        }
       }
     } catch (error) {
       console.error('Erreur lors de l\'ajout:', error);

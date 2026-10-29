@@ -420,18 +420,27 @@ export default function MenuManager() {
         } catch (e) {
           console.warn('Local API add error:', e);
         }
-      }
+      } else {
+        // Cloud: Supabase insert only
+        const { data: insertedProduct } = await supabase.from('products').insert([{
+          nom: newProduit.nom.trim(),
+          quantite: 0,
+          cout_unitaire: newProduit.prix,
+          categorie: newProduit.categorie,
+          type: 'PRODUCT',
+          seuil: 10,
+        }]).select().single();
 
-      // Supabase add
-      await supabase.from('products').insert([{
-        nom: newProduit.nom.trim(),
-        quantite: 0,
-        cout_unitaire: newProduit.prix,
-        categorie: newProduit.categorie,
-        type: 'PRODUCT',
-        seuil: 10,
-        recipe: newProduit.ingredients.map(i => ({ id: i.ingredient_id, quantity: i.quantite }))
-      }]);
+        // Save recipes for stock deduction
+        if (insertedProduct && newProduit.ingredients.length > 0) {
+          const recipeRows = newProduit.ingredients.map(i => ({
+            product_id: insertedProduct.id,
+            ingredient_id: i.ingredient_id,
+            quantity: i.quantite
+          }));
+          await supabase.from('recipes').insert(recipeRows);
+        }
+      }
 
       await loadData(); // Reload data from server
 
